@@ -4,6 +4,15 @@ This library provide ability to use Oracle Advanced Queuing (Oracle AQ) as trans
 
 ## How to configure
 
+
+You can spiecify transport as port of the IConfigureThisEndpoint class declaration, e.g:
+
+    public class EndpointConfig : IConfigureThisEndpoint, AsA_Server, UsingTransport<OracleAQ>
+    {
+    }
+
+Or you can specify it using fluent configuration:
+
     Configure.With()
         .DefaultBuilder()
         .UseTransport<OracleAQ>();
@@ -13,7 +22,7 @@ This library provide ability to use Oracle Advanced Queuing (Oracle AQ) as trans
 One benefit of using NServiceBus OracleAQ transport is ability to send message from database PL/SQL procedure or code block. 
 The following snippet ilustrate how to do that:
 
-    NSB.SEND_MSG(
+    NSB.SEND(
         endpoint => 'Customers',
         namespace => 'Amazon.Customers.Messages.Commands',
         message => 'CreateCustomer',
