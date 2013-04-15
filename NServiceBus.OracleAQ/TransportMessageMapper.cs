@@ -12,7 +12,7 @@
     {
         private static readonly XmlSerializer TransportMessageSerializer = CreateSerializer();
 
-        public static void SerializeToXml(TransportMessage transportMessage, MemoryStream stream)
+        public static void SerializeToXml(TransportMessage transportMessage, Stream stream)
         {
             var doc = new XmlDocument();
 

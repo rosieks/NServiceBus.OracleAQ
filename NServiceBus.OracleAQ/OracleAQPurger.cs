@@ -19,7 +19,7 @@
 
         public string ConnectionString { get; set; }
 
-        public void Purge(string connectionString, string queue)
+        public void Purge(string queue)
         {
             using (OracleConnection conn = new OracleConnection(this.ConnectionString))
             {

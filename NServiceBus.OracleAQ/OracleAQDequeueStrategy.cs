@@ -49,7 +49,7 @@
 
             if (this.PurgeOnStartup)
             {
-                this.Purger.Purge(this.ConnectionString, this.workQueue);
+                this.Purger.Purge(this.workQueue);
             }
         }
 
