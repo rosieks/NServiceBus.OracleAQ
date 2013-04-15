@@ -97,8 +97,7 @@
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                Exception exception = null;
-                TransportMessage message = null;
+                var result = new ReceiveResult();
 
                 try
                 {
@@ -110,34 +109,43 @@
 
                             queue.Listen(null);
 
-                            message = this.TryReceive(queue);
+                            result = this.TryReceive(queue);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    exception = ex;
+                    result.Exception = ex;
                 }
                 finally
                 {
-                    this.endProcessMessage(message != null ? message.Id : null, exception);
+                    this.endProcessMessage(result.Message != null ? result.Message.Id : null, result.Exception);
                 }
             }
         }
 
-        private TransportMessage TryReceive(OracleAQQueue queue)
+        private ReceiveResult TryReceive(OracleAQQueue queue)
         {
+            var result = new ReceiveResult();
+
             using (var ts = new TransactionScope(TransactionScopeOption.Required, this.transactionOptions))
             {
                 queue.Connection.EnlistTransaction(Transaction.Current);
-                TransportMessage message = this.Receive(queue);
+                result.Message = this.Receive(queue);
 
-                if (message == null || this.tryProcessMessage(message))
+                try
                 {
-                    ts.Complete();
+                    if (result.Message == null || this.tryProcessMessage(result.Message))
+                    {
+                        ts.Complete();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Exception = ex;
                 }
 
-                return message;
+                return result;
             }
         }
 
@@ -163,5 +171,12 @@
 
             return TransportMessageMapper.DeserializeFromXml(aqMessage);
         }
+
+        private class ReceiveResult
+        {
+            public Exception Exception { get; set; }
+            public TransportMessage Message { get; set; }
+        }
+
     }
 }
