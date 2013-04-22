@@ -119,7 +119,10 @@
                 }
                 finally
                 {
-                    this.endProcessMessage(result.Message != null ? result.Message.Id : null, result.Exception);
+                    if (result.Message != null)
+                    {
+                        this.endProcessMessage(result.Message, result.Exception);
+                    }
                 }
             }
         }
@@ -175,8 +178,8 @@
         private class ReceiveResult
         {
             public Exception Exception { get; set; }
+
             public TransportMessage Message { get; set; }
         }
-
     }
 }
