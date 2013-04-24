@@ -121,7 +121,7 @@
                 {
                     if (result.Message != null)
                     {
-                        this.endProcessMessage(result.Message, result.Exception);
+                        this.endProcessMessage(result.Message.Id, result.Exception);
                     }
                 }
             }

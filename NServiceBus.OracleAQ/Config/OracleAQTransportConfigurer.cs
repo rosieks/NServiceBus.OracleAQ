@@ -1,7 +1,7 @@
 ﻿namespace NServiceBus.Transports.OracleAQ.Config
 {
     using System;
-    using NServiceBus.Unicast.Publishing;
+    using NServiceBus.Features;
     using NServiceBus.Unicast.Queuing.Installers;
     using OracleAQ = NServiceBus.OracleAQ;
 
@@ -39,7 +39,7 @@
                 .ConfigureProperty(p => p.ConnectionString, connectionString)
                 .ConfigureProperty(p => p.PurgeOnStartup, ConfigurePurging.PurgeRequested);
 
-            config.Configurer.ConfigureComponent<StorageDrivenPublisher>(DependencyLifecycle.InstancePerCall);
+            Feature.Enable<MessageDrivenSubscriptions>();
 
             EndpointInputQueueCreator.Enabled = true;
         }
