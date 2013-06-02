@@ -1,9 +1,22 @@
 ﻿namespace NServiceBus.Transports.OracleAQ
 {
+    /// <summary>
+    /// Interface that definie policy used to convert queue name to database objects.
+    /// </summary>
     public interface IQueueNamePolicy
     {
+        /// <summary>
+        /// Gets queue name in database based on address.
+        /// </summary>
+        /// <param name="address">Address for which queue name must be returned.</param>
+        /// <returns>Queue name for provided address.</returns>
         string GetQueueName(Address address);
 
+        /// <summary>
+        /// Gets queue table name in database based on address.
+        /// </summary>
+        /// <param name="address">Address for which queue table name must be returned.</param>
+        /// <returns>Queue table name for provided address.</returns>
         string GetQueueTableName(Address address);
     }
 
