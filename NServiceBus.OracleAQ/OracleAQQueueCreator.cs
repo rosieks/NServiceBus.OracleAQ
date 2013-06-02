@@ -10,7 +10,10 @@
             BEGIN 
                 SELECT count(*) INTO cnt FROM dba_queues WHERE name = :queue;
                 IF cnt = 0 THEN
-                    dbms_aqadm.create_queue(:queue, :queueTable);
+                    dbms_aqadm.create_queue(
+                        queue_name => :queue,
+                        queue_table => :queueTable,
+                        max_retries => 999);
                 END IF;
                 DBMS_AQADM.START_QUEUE(:queue);
             END;";
