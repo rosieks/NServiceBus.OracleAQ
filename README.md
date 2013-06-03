@@ -22,12 +22,22 @@ Or you can specify it using fluent configuration:
 One benefit of using NServiceBus OracleAQ transport is ability to send message from database PL/SQL procedure or code block. 
 The following snippet ilustrate how to do that:
 
-    NSB.SEND(
-        endpoint => 'Customers',
-        namespace => 'Amazon.Customers.Messages.Commands',
-        message => 'CreateCustomer',
-        data => '<FirstName>John</FirstName><LastName>Doe</LastName>'
-    );
+    DECLARE
+        headers NSB.HEADERS;
+    BEGIN
+
+		-- Configure message headers
+		headers('User') := sys_context('USERENV','CURRENT_USER');
+
+		-- Send message
+		NSB.SEND(
+			endpoint => 'Customers',
+			namespace => 'Amazon.Customers.Messages.Commands',
+			message => 'CreateCustomer',
+			data => '<FirstName>John</FirstName><LastName>Doe</LastName>',
+			headers => headers
+		);
+	END;
 
 ### Create custom queue name policy
 
