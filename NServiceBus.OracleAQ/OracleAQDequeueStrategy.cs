@@ -1,21 +1,27 @@
 ﻿namespace NServiceBus.Transports.OracleAQ
 {
     using System;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using System.Threading.Tasks.Schedulers;
-    using System.Transactions;
-    using NServiceBus.CircuitBreakers;
-    using NServiceBus.Unicast.Transport;
-    using Oracle.DataAccess.Client;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Threading.Tasks.Schedulers;
+using System.Transactions;
+using NServiceBus.CircuitBreakers;
+using NServiceBus.Logging;
+using NServiceBus.Unicast.Transport;
+using Oracle.DataAccess.Client;
 
     public class OracleAQDequeueStrategy : IDequeueMessages
     {
-        private readonly CircuitBreaker circuitBreaker = new CircuitBreaker(100, TimeSpan.FromSeconds(30));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(OracleAQDequeueStrategy));
+        private readonly ICircuitBreaker circuitBreaker = new RepeatedFailuresOverTimeCircuitBreaker(
+            "OracleAQTransportConnectivity",
+            TimeSpan.FromMinutes(2),
+            ex => Configure.Instance.RaiseCriticalError("Repeated failures when communicating with Oracle database", ex),
+            TimeSpan.FromSeconds(10));
 
         private TransactionOptions transactionOptions;
         private Func<TransportMessage, bool> tryProcessMessage;
-        private Action<string, Exception> endProcessMessage;
+        private Action<TransportMessage, Exception> endProcessMessage;
         private string workQueue;
         private MTATaskScheduler scheduler;
         private CancellationTokenSource tokenSource;
@@ -29,7 +35,7 @@
 
         public string ConnectionString { get; set; }
 
-        public void Init(Address address, TransactionSettings transactionSettings, Func<TransportMessage, bool> tryProcessMessage, Action<string, Exception> endProcessMessage)
+        public void Init(Address address, TransactionSettings transactionSettings, Func<TransportMessage, bool> tryProcessMessage, Action<TransportMessage, Exception> endProcessMessage)
         {
             this.tryProcessMessage = tryProcessMessage;
             this.endProcessMessage = endProcessMessage;
@@ -82,8 +88,8 @@
                 {
                     t.Exception.Handle(ex =>
                         {
-                            circuitBreaker.Execute(() => Configure.Instance.RaiseCriticalError(
-                                string.Format("Failed to receive message from '{0}'.", this.workQueue), ex));
+                            Logger.Warn("Failed to connect to the configured Oracle database");
+                            circuitBreaker.Failure(ex);
                             return true;
                         });
 
@@ -121,7 +127,7 @@
                 {
                     if (result.Message != null)
                     {
-                        this.endProcessMessage(result.Message.Id, result.Exception);
+                        this.endProcessMessage(result.Message, result.Exception);
                     }
                 }
             }

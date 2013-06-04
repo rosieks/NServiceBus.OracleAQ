@@ -5,7 +5,7 @@
     /// <summary>
     /// Transport definition for OracleAQ.
     /// </summary>
-    public class OracleAQ : ITransportDefinition
+    public class OracleAQ : TransportDefinition
     {
     }
 }

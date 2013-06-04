@@ -46,8 +46,11 @@
 
         public static TransportMessage DeserializeFromXml(OracleAQMessage message)
         {
-            OracleXmlType type = (OracleXmlType)message.Payload;
-            var bodyDoc = type.GetXmlDocument();
+            XmlDocument bodyDoc;
+            using (OracleXmlType type = (OracleXmlType)message.Payload)
+            {
+                bodyDoc = type.GetXmlDocument();
+            }
 
             var bodySection = bodyDoc.DocumentElement.SelectSingleNode("Body").FirstChild as XmlCDataSection;
 
@@ -72,11 +75,9 @@
                 messageIntent = (MessageIntentEnum)Enum.Parse(typeof(MessageIntentEnum), messageIntentSection.InnerText);
             }
 
-            var transportMessage = new TransportMessage
+            var transportMessage = new TransportMessage(new Guid(message.MessageId).ToString(), headerDictionary)
             {
-                Id = new Guid(message.MessageId).ToString(),
-                Body = Encoding.UTF8.GetBytes(bodySection.Data),
-                Headers = headerDictionary,
+                Body = bodySection != null ? Encoding.UTF8.GetBytes(bodySection.Data) : new byte[0],
                 ReplyToAddress = replyToAddress,
                 MessageIntent = messageIntent,
             };

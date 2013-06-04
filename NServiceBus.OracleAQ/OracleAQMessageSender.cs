@@ -28,7 +28,6 @@
             {
                 conn.Open();
 
-                // Set the time from the source machine when the message was sent
                 using (OracleAQQueue queue = new OracleAQQueue(this.NamePolicy.GetQueueName(address), conn, OracleAQMessageType.Xml))
                 {
                     queue.EnqueueOptions.Visibility = Transaction.Current == null ? OracleAQVisibilityMode.Immediate : OracleAQVisibilityMode.OnCommit;
