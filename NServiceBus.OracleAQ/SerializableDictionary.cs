@@ -10,6 +10,9 @@
     internal class SerializableDictionary<TKey, TValue>
         : Dictionary<TKey, TValue>, IXmlSerializable
     {
+        private static XmlSerializer keySerializer = new XmlSerializer(typeof(TKey));
+        private static XmlSerializer valueSerializer = new XmlSerializer(typeof(TValue));
+
         public SerializableDictionary()
         {
         }
@@ -27,9 +30,6 @@
 
         public void ReadXml(System.Xml.XmlReader reader)
         {
-            XmlSerializer keySerializer = new XmlSerializer(typeof(TKey));
-            XmlSerializer valueSerializer = new XmlSerializer(typeof(TValue));
-
             bool wasEmpty = reader.IsEmptyElement;
             reader.Read();
 
@@ -59,9 +59,6 @@
 
         public void WriteXml(System.Xml.XmlWriter writer)
         {
-            XmlSerializer keySerializer = new XmlSerializer(typeof(TKey));
-            XmlSerializer valueSerializer = new XmlSerializer(typeof(TValue));
-
             foreach (TKey key in this.Keys)
             {
                 writer.WriteStartElement("item");
