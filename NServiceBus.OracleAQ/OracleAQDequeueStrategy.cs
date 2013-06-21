@@ -1,14 +1,14 @@
 ﻿namespace NServiceBus.Transports.OracleAQ
 {
     using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Schedulers;
-using System.Transactions;
-using NServiceBus.CircuitBreakers;
-using NServiceBus.Logging;
-using NServiceBus.Unicast.Transport;
-using Oracle.DataAccess.Client;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using System.Threading.Tasks.Schedulers;
+    using System.Transactions;
+    using NServiceBus.CircuitBreakers;
+    using NServiceBus.Logging;
+    using NServiceBus.Unicast.Transport;
+    using Oracle.DataAccess.Client;
 
     public class OracleAQDequeueStrategy : IDequeueMessages
     {
@@ -31,10 +31,23 @@ using Oracle.DataAccess.Client;
 
         public IQueueNamePolicy NamePolicy { get; set; }
 
+        /// <summary>
+        /// Determines if the queue should be purged when the transport starts.
+        /// </summary>
         public bool PurgeOnStartup { get; set; }
 
+        /// <summary>
+        /// The connection used to open the Oracle database.
+        /// </summary>
         public string ConnectionString { get; set; }
 
+        /// <summary>
+        /// Initializes the <see cref="IDequeueMessages" />.
+        /// </summary>
+        /// <param name="address">The address to listen on.</param>
+        /// <param name="transactionSettings">The <see cref="TransactionSettings" /> to be used by <see cref="IDequeueMessages" />.</param>
+        /// <param name="tryProcessMessage">Called when a message has been dequeued and is ready for processing.</param>
+        /// <param name="endProcessMessage">Needs to be called by <see cref="IDequeueMessages" /> after the message has been processed regardless if the outcome was successful or not.</param>
         public void Init(Address address, TransactionSettings transactionSettings, Func<TransportMessage, bool> tryProcessMessage, Action<TransportMessage, Exception> endProcessMessage)
         {
             this.tryProcessMessage = tryProcessMessage;
@@ -59,6 +72,10 @@ using Oracle.DataAccess.Client;
             }
         }
 
+        /// <summary>
+        /// Starts the dequeuing of message using the specified <paramref name="maximumConcurrencyLevel" />.
+        /// </summary>
+        /// <param name="maximumConcurrencyLevel">Indicates the maximum concurrency level this <see cref="IDequeueMessages" /> is able to support.</param>
         public void Start(int maximumConcurrencyLevel)
         {
             this.tokenSource = new CancellationTokenSource();
@@ -72,6 +89,9 @@ using Oracle.DataAccess.Client;
             }
         }
 
+        /// <summary>
+        /// Stops the dequeuing of messages.
+        /// </summary>
         public void Stop()
         {
             this.tokenSource.Cancel();
@@ -119,10 +139,6 @@ using Oracle.DataAccess.Client;
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    result.Exception = ex;
-                }
                 finally
                 {
                     if (result.Message != null)
@@ -130,6 +146,8 @@ using Oracle.DataAccess.Client;
                         this.endProcessMessage(result.Message, result.Exception);
                     }
                 }
+
+                this.circuitBreaker.Success();
             }
         }
 
