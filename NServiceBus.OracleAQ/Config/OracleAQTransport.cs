@@ -4,7 +4,6 @@
     using NServiceBus.Settings;
     using NServiceBus.Transports;
     using NServiceBus.Transports.OracleAQ;
-    using NServiceBus.Unicast.Queuing.Installers;
 
     /// <summary>
     /// Configures NServiceBus to use OracleAQ as the default transport.
@@ -44,8 +43,6 @@
             NServiceBus.Configure.Component<OracleAQDequeueStrategy>(DependencyLifecycle.InstancePerCall)
                 .ConfigureProperty(p => p.ConnectionString, connectionString)
                 .ConfigureProperty(p => p.PurgeOnStartup, ConfigurePurging.PurgeRequested);
-
-            EndpointInputQueueCreator.Enabled = true;
         }
 
         protected override void InternalConfigure(Configure config)
