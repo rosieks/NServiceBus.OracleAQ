@@ -15,6 +15,9 @@
         /// </summary>
         public string ConnectionString { get; set; }
 
+        /// <summary>
+        /// Gets or sets queues name policy.
+        /// </summary>
         public IQueueNamePolicy NamePolicy { get; set; }
 
         /// <summary>

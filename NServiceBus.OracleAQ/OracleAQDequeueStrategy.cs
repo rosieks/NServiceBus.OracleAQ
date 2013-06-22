@@ -29,6 +29,9 @@
 
         public OracleAQPurger Purger { get; set; }
 
+        /// <summary>
+        /// Gets or sets queues name policy.
+        /// </summary>
         public IQueueNamePolicy NamePolicy { get; set; }
 
         /// <summary>
@@ -189,11 +192,6 @@
                 {
                     throw;
                 }
-            }
-
-            if (null == aqMessage)
-            {
-                return null;
             }
 
             return TransportMessageMapper.DeserializeFromXml(aqMessage);

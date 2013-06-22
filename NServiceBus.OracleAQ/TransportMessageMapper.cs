@@ -46,6 +46,11 @@
 
         public static TransportMessage DeserializeFromXml(OracleAQMessage message)
         {
+            if (message == null)
+            {
+                return null;
+            }
+
             XmlDocument bodyDoc;
             using (OracleXmlType type = (OracleXmlType)message.Payload)
             {
