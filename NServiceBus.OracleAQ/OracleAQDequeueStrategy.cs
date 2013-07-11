@@ -167,7 +167,10 @@
                 {
                     if (result.Message == null || this.tryProcessMessage(result.Message))
                     {
+                        // NOTE: We explicitly calling Dispose so that we force any exception to not bubble,
+                        // eg Concurrency/Deadlock exception.
                         ts.Complete();
+                        ts.Dispose();
                     }
                 }
                 catch (Exception ex)
