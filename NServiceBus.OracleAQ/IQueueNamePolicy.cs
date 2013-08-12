@@ -1,7 +1,7 @@
 ﻿namespace NServiceBus.Transports.OracleAQ
 {
     using System;
-    using System.Collections;
+    using System.Collections.Concurrent;
 
     /// <summary>
     /// Interface that definie policy used to convert queue name to database objects.
@@ -39,7 +39,7 @@
         /// </summary>
         public static Func<string, string> NameTransformation = DefaultNameTransformation;
 
-        private static Hashtable names = new Hashtable();
+        private static ConcurrentDictionary<string, string> names = new ConcurrentDictionary<string, string>();
         private static object lockObject = new object();
 
         /// <summary>
@@ -67,26 +67,12 @@
 
         private static string NormalizeName(Address address)
         {
-            string name = (string)DefaultQueueNamePolicy.names[address.Queue];
-
-            if (name == null)
+            string name;
+            if (!DefaultQueueNamePolicy.names.TryGetValue(address.Queue, out name))
             {
                 name = DefaultQueueNamePolicy.NameTransformation(address.Queue);
                 
-                DefaultQueueNamePolicy.SafeAdd(address.Queue, name);
-            }
-
-            return name;
-        }
-
-        private static string SafeAdd(string queue, string name)
-        {
-            lock (lockObject)
-            {
-                var names = (Hashtable)DefaultQueueNamePolicy.names.Clone();
-                names[queue] = name;
-
-                DefaultQueueNamePolicy.names = names;
+                DefaultQueueNamePolicy.names.TryAdd(address.Queue, name);
             }
 
             return name;
