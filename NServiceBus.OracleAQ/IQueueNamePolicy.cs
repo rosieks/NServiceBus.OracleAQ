@@ -40,7 +40,6 @@
         public static Func<string, string> NameTransformation = DefaultNameTransformation;
 
         private static ConcurrentDictionary<string, string> names = new ConcurrentDictionary<string, string>();
-        private static object lockObject = new object();
 
         /// <summary>
         /// Gets queue name in database based on address.
@@ -81,7 +80,7 @@
         private static string DefaultNameTransformation(string name)
         {
             return name
-                .Replace('_', '.')                      // Dot (.) is not allowed as table name.
+                .Replace('.', '_')                      // Dot (.) is not allowed as table name.
                 .Replace("TimeoutsDispatcher", "TD")    // Oracle object name is limited to 30 characters so we create shortcut.
                 .ToUpper();
         }
