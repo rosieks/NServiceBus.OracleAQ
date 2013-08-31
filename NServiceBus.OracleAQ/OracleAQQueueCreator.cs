@@ -2,6 +2,9 @@
 {
     using Oracle.DataAccess.Client;
 
+    /// <summary>
+    /// OracleAQQueueCreator is used to create queues in Oracle database.
+    /// </summary>
     public class OracleAQQueueCreator : ICreateQueues
     {
         private const string CreateQueue = @"
@@ -32,6 +35,11 @@
 
         public IQueueNamePolicy NamePolicy { get; set; }
 
+        /// <summary>
+        /// Create a messages queue where its name is the address parameter.
+        /// </summary>
+        /// <param name="address">Address of queue</param>
+        /// <param name="account">Not used parameter</param>
         public void CreateQueueIfNecessary(Address address, string account)
         {
             using (OracleConnection conn = new OracleConnection(this.ConnectionString))

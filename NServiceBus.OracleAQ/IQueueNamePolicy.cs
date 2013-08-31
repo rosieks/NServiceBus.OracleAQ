@@ -28,7 +28,6 @@
     /// </summary>
     /// <remarks>
     /// Policy run <see cref="NameTransformation"/> function and cache result in hashtable.
-    /// 
     /// Default version of <see cref="NameTransaformation"/> function replace dot (.) to underscore (_)
     /// and replace <i>TimeoutsDispatcher</i> to <i>TD</i>.
     /// </remarks>

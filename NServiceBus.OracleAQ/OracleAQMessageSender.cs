@@ -1,5 +1,6 @@
 ﻿namespace NServiceBus.Transports.OracleAQ
 {
+    using System;
     using System.IO;
     using System.Text;
     using System.Transactions;
@@ -10,10 +11,25 @@
     /// </summary>
     public class OracleAQMessageSender : ISendMessages
     {
+        private bool canEnlist;
+        private string connectionString;
+
         /// <summary>
         /// Gets or sets connection String to the service hosting the service broker
         /// </summary>
-        public string ConnectionString { get; set; }
+        public string ConnectionString
+        {
+            get
+            {
+                return this.connectionString;
+            }
+
+            set
+            {
+                this.canEnlist = OracleAQMessageSender.CanEnlist(value);
+                this.connectionString = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets queues name policy.
@@ -33,7 +49,7 @@
 
                 using (OracleAQQueue queue = new OracleAQQueue(this.NamePolicy.GetQueueName(address), conn, OracleAQMessageType.Xml))
                 {
-                    queue.EnqueueOptions.Visibility = Transaction.Current == null ? OracleAQVisibilityMode.Immediate : OracleAQVisibilityMode.OnCommit;
+                    queue.EnqueueOptions.Visibility = this.GetVisibilityMode();
 
                     using (var stream = new MemoryStream())
                     {
@@ -43,6 +59,25 @@
                         queue.Enqueue(aqMessage);
                     }
                 }
+            }
+        }
+
+        private static bool CanEnlist(string connectionString)
+        {
+            // We can enlist connection if connectionString doesn't have "enlist=false;".
+            OracleConnectionStringBuilder builder = new OracleConnectionStringBuilder(connectionString);
+            return !string.Equals(builder.Enlist, "false", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private OracleAQVisibilityMode GetVisibilityMode()
+        {
+            if (this.canEnlist && Transaction.Current != null)
+            {
+                return OracleAQVisibilityMode.OnCommit;
+            }
+            else
+            {
+                return OracleAQVisibilityMode.Immediate;
             }
         }
     }

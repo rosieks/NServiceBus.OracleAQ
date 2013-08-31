@@ -10,6 +10,9 @@
     using NServiceBus.Unicast.Transport;
     using Oracle.DataAccess.Client;
 
+    /// <summary>
+    /// Default implementation of <see cref="IDequeueMessages"/> for OracleAQ.
+    /// </summary>
     public class OracleAQDequeueStrategy : IDequeueMessages
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(OracleAQDequeueStrategy));
@@ -40,7 +43,7 @@
         public bool PurgeOnStartup { get; set; }
 
         /// <summary>
-        /// The connection used to open the Oracle database.
+        /// Gets or sets the connection string used to open the Oracle database.
         /// </summary>
         public string ConnectionString { get; set; }
 
