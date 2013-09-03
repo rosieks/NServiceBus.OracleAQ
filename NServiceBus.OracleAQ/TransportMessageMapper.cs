@@ -36,9 +36,12 @@
             headerElement.InnerXml = headers.GetXml();
             doc.DocumentElement.AppendChild(headerElement);
 
-            var replyToAddressElement = doc.CreateElement("ReplyToAddress");
-            replyToAddressElement.InnerText = transportMessage.ReplyToAddress.ToString();
-            doc.DocumentElement.AppendChild(replyToAddressElement);
+            if (transportMessage.ReplyToAddress != null)
+            {
+                var replyToAddressElement = doc.CreateElement("ReplyToAddress");
+                replyToAddressElement.InnerText = transportMessage.ReplyToAddress.ToString();
+                doc.DocumentElement.AppendChild(replyToAddressElement);
+            }
 
             doc.Save(stream);
             stream.Position = 0;
