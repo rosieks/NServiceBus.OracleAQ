@@ -69,9 +69,9 @@
                 headerDictionary.SetXml(headerSection.InnerXml);
             }
 
-            Address replyToAddress = Address.Undefined;
+            Address replyToAddress = null;
             var replyToAddressSection = bodyDoc.DocumentElement.SelectSingleNode("ReplyToAddress");
-            if (replyToAddressSection != null)
+            if (replyToAddressSection != null && !string.IsNullOrEmpty(replyToAddressSection.InnerText))
             {
                 replyToAddress = Address.Parse(replyToAddressSection.InnerText);
             }
