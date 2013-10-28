@@ -13,10 +13,10 @@
     /// <summary>
     /// Default implementation of <see cref="IDequeueMessages"/> for OracleAQ.
     /// </summary>
-    public class OracleAQDequeueStrategy : IDequeueMessages
+    public class OracleAQDequeueStrategy : IDequeueMessages, IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(OracleAQDequeueStrategy));
-        private readonly ICircuitBreaker circuitBreaker = new RepeatedFailuresOverTimeCircuitBreaker(
+        private readonly RepeatedFailuresOverTimeCircuitBreaker circuitBreaker = new RepeatedFailuresOverTimeCircuitBreaker(
             "OracleAQTransportConnectivity",
             TimeSpan.FromMinutes(2),
             ex => Configure.Instance.RaiseCriticalError("Repeated failures when communicating with Oracle database", ex),
@@ -102,6 +102,12 @@
         {
             this.tokenSource.Cancel();
             this.scheduler.Dispose();
+            this.circuitBreaker.Dispose();
+        }
+
+        void IDisposable.Dispose()
+        {
+            this.Stop();
         }
 
         private void StartThread()
