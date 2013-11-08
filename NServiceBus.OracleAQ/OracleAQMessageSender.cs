@@ -4,6 +4,7 @@
     using System.IO;
     using System.Text;
     using System.Transactions;
+    using NServiceBus.Unicast.Queuing;
     using Oracle.DataAccess.Client;
 
     /// <summary>
@@ -56,7 +57,21 @@
                         TransportMessageMapper.SerializeToXml(message, stream);
                         OracleAQMessage aqMessage = new OracleAQMessage(Encoding.UTF8.GetString(stream.ToArray()));
                         aqMessage.Correlation = message.CorrelationId;
-                        queue.Enqueue(aqMessage);
+                        try
+                        {
+                            queue.Enqueue(aqMessage);
+                        }
+                        catch (OracleException ex)
+                        {
+                            if (ex.Number == OraCodes.QueueDoesNotExist)
+                            {
+                                throw new QueueNotFoundException { Queue = address };
+                            }
+                            else
+                            {
+                                throw;
+                            }
+                        }
                     }
                 }
             }

@@ -200,7 +200,7 @@
             }
             catch (OracleException ex)
             {
-                if (ex.Number != 25228)
+                if (ex.Number != OraCodes.TimeoutOrEndOfFetch)
                 {
                     throw;
                 }

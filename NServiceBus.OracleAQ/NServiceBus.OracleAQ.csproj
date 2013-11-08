@@ -68,6 +68,7 @@
     <Compile Include="OracleAQMessageSender.cs" />
     <Compile Include="OracleAQPurger.cs" />
     <Compile Include="OracleAQQueueCreator.cs" />
+    <Compile Include="OraCodes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SerializableDictionary.cs" />
     <Compile Include="TransportMessageMapper.cs" />
