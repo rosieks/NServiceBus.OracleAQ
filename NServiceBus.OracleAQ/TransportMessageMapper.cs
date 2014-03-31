@@ -24,7 +24,7 @@
                 doc.Load(tempstream);
             }
 
-            var data = transportMessage.Body != null ? Encoding.UTF8.GetString(transportMessage.Body) : string.Empty;
+            var data = transportMessage.Body.EncodeToUTF8WithoutIdentifier();
 
             var bodyElement = doc.CreateElement("Body");
             bodyElement.AppendChild(doc.CreateCDataSection(data));
@@ -102,6 +102,25 @@
             overrides.Add(typeof(TransportMessage), "Headers", attrs);
             overrides.Add(typeof(TransportMessage), "Body", attrs);
             return new XmlSerializer(typeof(TransportMessage), overrides);
+        }
+
+        private static string EncodeToUTF8WithoutIdentifier(this byte[] bytes)
+        {
+            if (bytes != null)
+            {
+                if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+                {
+                    return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+                }
+                else
+                {
+                    return Encoding.UTF8.GetString(bytes);
+                }
+            }
+            else
+            {
+                return string.Empty;
+            }
         }
     }
 }
