@@ -3,7 +3,6 @@
     using System;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Threading.Tasks.Schedulers;
     using System.Transactions;
     using NServiceBus.CircuitBreakers;
     using NServiceBus.Logging;
@@ -26,6 +25,7 @@
         private Func<TransportMessage, bool> tryProcessMessage;
         private Action<TransportMessage, Exception> endProcessMessage;
         private string workQueue;
+        private string clientInfo;
         private MTATaskScheduler scheduler;
         private CancellationTokenSource tokenSource;
         private OracleAQDequeueOptions dequeueOptions;
@@ -59,6 +59,7 @@
             this.tryProcessMessage = tryProcessMessage;
             this.endProcessMessage = endProcessMessage;
             this.workQueue = this.NamePolicy.GetQueueName(address);
+            this.clientInfo = string.Format("OracleAQDequeueStrategy for {0}", this.workQueue);
 
             this.transactionOptions = new TransactionOptions
             {
@@ -145,6 +146,8 @@
                         {
                             connection.Open();
 
+                            this.SetupClientInfo(connection);
+
                             queue.Listen(null);
 
                             result = this.TryReceive(queue);
@@ -160,6 +163,16 @@
                 }
 
                 this.circuitBreaker.Success();
+            }
+        }
+
+        private void SetupClientInfo(OracleConnection connection)
+        {
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "begin DBMS_APPLICATION_INFO.SET_CLIENT_INFO(:p1); end;";
+                command.Parameters.Add("p1", this.clientInfo);
+                command.ExecuteNonQuery();
             }
         }
 
