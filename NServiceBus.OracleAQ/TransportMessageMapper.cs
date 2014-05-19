@@ -71,9 +71,9 @@
 
             Address replyToAddress = null;
             var replyToAddressSection = bodyDoc.DocumentElement.SelectSingleNode("ReplyToAddress");
-            if (replyToAddressSection != null && !string.IsNullOrEmpty(replyToAddressSection.InnerText))
+            if (replyToAddressSection != null && !string.IsNullOrWhiteSpace(replyToAddressSection.InnerText))
             {
-                replyToAddress = Address.Parse(replyToAddressSection.InnerText);
+                replyToAddress = Address.Parse(replyToAddressSection.InnerText.Trim());
             }
 
             MessageIntentEnum messageIntent = default(MessageIntentEnum);
