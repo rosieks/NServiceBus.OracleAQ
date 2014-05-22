@@ -13,7 +13,7 @@
             DECLARE 
                 cnt NUMBER;
             BEGIN 
-                SELECT count(*) INTO cnt FROM dba_queues WHERE name = :queue;
+                SELECT count(*) INTO cnt FROM user_queues WHERE name = :queue;
                 IF cnt = 0 THEN
                     dbms_aqadm.create_queue(
                         queue_name => :queue,
@@ -27,13 +27,13 @@
             DECLARE 
                 cnt NUMBER; 
             BEGIN 
-                SELECT count(*) INTO cnt FROM all_tables WHERE table_name = :queueTable;
+                SELECT count(*) INTO cnt FROM user_tables WHERE table_name = :queueTable;
                 IF cnt = 0 THEN
                     dbms_aqadm.create_queue_table(:queueTable, 'SYS.XMLType');
                 END IF;
             END;";
 
-        private const string DoesQueueExistSql = @"SELECT count(*) FROM dba_queues WHERE name = :queue";
+        private const string DoesQueueExistSql = @"SELECT count(*) FROM user_queues WHERE name = :queue";
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(OracleAQQueueCreator));
 
