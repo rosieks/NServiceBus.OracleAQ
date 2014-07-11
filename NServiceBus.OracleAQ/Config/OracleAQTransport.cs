@@ -18,44 +18,48 @@
             }
         }
 
-        public override void Initialize()
+        protected override void Setup(FeatureConfigurationContext context)
         {
-            OracleAQTransport.CustomizeAddress();
+            OracleAQTransport.CustomizeAddress(context.Settings);
 
-            string connectionString = SettingsHolder.Get<string>("NServiceBus.Transport.ConnectionString");
+            string connectionString = context.Settings.Get<string>("NServiceBus.Transport.ConnectionString");
 
             if (string.IsNullOrEmpty(connectionString))
             {
-                throw new ArgumentException("OracleAQ Transport connection string cannot be empty or null", "connectionString");
+                throw new ArgumentException("OracleAQ Transport connection string cannot be empty or null");
             }
 
-            NServiceBus.Configure.Component<DefaultQueueNamePolicy>(DependencyLifecycle.SingleInstance);
+            var container = context.Container;
+            container.ConfigureComponent<DefaultQueueNamePolicy>(DependencyLifecycle.SingleInstance);
 
-            NServiceBus.Configure.Component<OracleAQPurger>(DependencyLifecycle.SingleInstance)
+            container.ConfigureComponent<OracleAQPurger>(DependencyLifecycle.SingleInstance)
                 .ConfigureProperty(p => p.ConnectionString, connectionString);
 
-            NServiceBus.Configure.Component<OracleAQQueueCreator>(DependencyLifecycle.InstancePerCall)
+            container.ConfigureComponent<OracleAQQueueCreator>(DependencyLifecycle.InstancePerCall)
                 .ConfigureProperty(p => p.ConnectionString, connectionString);
 
-            NServiceBus.Configure.Component<OracleAQMessageSender>(DependencyLifecycle.InstancePerCall)
+            container.ConfigureComponent<OracleAQMessageSender>(DependencyLifecycle.InstancePerCall)
                 .ConfigureProperty(p => p.ConnectionString, connectionString);
 
-            NServiceBus.Configure.Component<OracleAQDequeueStrategy>(DependencyLifecycle.InstancePerCall)
+            container.ConfigureComponent<OracleAQDequeueStrategy>(DependencyLifecycle.InstancePerCall)
                 .ConfigureProperty(p => p.ConnectionString, connectionString)
                 .ConfigureProperty(p => p.PurgeOnStartup, ConfigurePurging.PurgeRequested);
         }
 
         protected override void InternalConfigure(Configure config)
         {
-            Feature.Enable<OracleAQTransport>();
-            Feature.Enable<MessageDrivenSubscriptions>();
+            config.EnableFeature<OracleAQTransport>();
+            config.EnableFeature<MessageDrivenSubscriptions>();
+            config.EnableFeature<TimeoutManagerBasedDeferral>();
+            config.Settings.EnableFeatureByDefault<StorageDrivenPublishing>();
+            config.Settings.EnableFeatureByDefault<TimeoutManager>();
         }
 
-        private static void CustomizeAddress()
+        private static void CustomizeAddress(ReadOnlySettings settings)
         {
             Address.IgnoreMachineName();
 
-            if (!SettingsHolder.GetOrDefault<bool>("ScaleOut.UseSingleBrokerQueue"))
+            if (!settings.GetOrDefault<bool>("ScaleOut.UseSingleBrokerQueue"))
             {
                 Address.InitializeLocalAddress(Address.Local.Queue + "." + Address.Local.Machine);
             }

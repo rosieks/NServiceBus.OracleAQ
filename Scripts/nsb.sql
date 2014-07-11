@@ -40,11 +40,10 @@ END NSB;
       headerKey := headers.next(headerKey);
     END LOOP;
     
-    transportMessage := '<?xml version="1.0"?><TransportMessage><Body><![CDATA[<Messages xmlns="http://tempuri.net/'
-    || namespace || '"><'
-    || message || '>'
+    transportMessage := '<?xml version="1.0"?><TransportMessage><Body><![CDATA[<'
+    || message || 'xmlns="http://tempuri.net/' || namespace || '">'
     || data
-    || '</' || message || '></Messages>]]></Body>'
+    || '</' || message || '>]]></Body>'
     || '<Headers>' || headersXml || '</Headers>'
     || '</TransportMessage>';
     

@@ -18,7 +18,7 @@
         private readonly RepeatedFailuresOverTimeCircuitBreaker circuitBreaker = new RepeatedFailuresOverTimeCircuitBreaker(
             "OracleAQTransportConnectivity",
             TimeSpan.FromMinutes(2),
-            ex => Configure.Instance.RaiseCriticalError("Repeated failures when communicating with Oracle database", ex),
+            ex => ConfigureCriticalErrorAction.RaiseCriticalError("Repeated failures when communicating with Oracle database", ex),
             TimeSpan.FromSeconds(10));
 
         private TransactionOptions transactionOptions;

@@ -4,6 +4,7 @@
     using System.IO;
     using System.Text;
     using System.Transactions;
+    using NServiceBus.Unicast;
     using NServiceBus.Unicast.Queuing;
     using Oracle.DataAccess.Client;
 
@@ -42,8 +43,9 @@
         /// </summary>
         /// <param name="message">Message to send.</param>
         /// <param name="address">Message destination address.</param>
-        public void Send(TransportMessage message, Address address)
+        public void Send(TransportMessage message, SendOptions sendOptions)
         {
+            var address = sendOptions.Destination;
             using (OracleConnection conn = new OracleConnection(this.ConnectionString))
             {
                 conn.Open();

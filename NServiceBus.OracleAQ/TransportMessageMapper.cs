@@ -86,7 +86,6 @@
             var transportMessage = new TransportMessage(new Guid(message.MessageId).ToString(), headerDictionary)
             {
                 Body = bodySection != null ? Encoding.UTF8.GetBytes(bodySection.Data) : new byte[0],
-                ReplyToAddress = replyToAddress,
                 MessageIntent = messageIntent,
             };
 
