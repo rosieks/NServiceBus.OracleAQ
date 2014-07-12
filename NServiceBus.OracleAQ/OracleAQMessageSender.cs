@@ -4,6 +4,7 @@
     using System.IO;
     using System.Text;
     using System.Transactions;
+    using NServiceBus.Pipeline;
     using NServiceBus.Unicast;
     using NServiceBus.Unicast.Queuing;
     using Oracle.DataAccess.Client;
@@ -38,6 +39,8 @@
         /// </summary>
         public IQueueNamePolicy NamePolicy { get; set; }
 
+        public PipelineExecutor PipelineExecutor { get; set; }
+
         /// <summary>
         /// Sends the given message to the address.
         /// </summary>
@@ -46,33 +49,45 @@
         public void Send(TransportMessage message, SendOptions sendOptions)
         {
             var address = sendOptions.Destination;
-            using (OracleConnection conn = new OracleConnection(this.ConnectionString))
+            OracleConnection conn;
+            if (this.PipelineExecutor.CurrentContext.TryGet(string.Format("SqlConnection-", this.ConnectionString), out conn))
             {
-                conn.Open();
-
-                using (OracleAQQueue queue = new OracleAQQueue(this.NamePolicy.GetQueueName(address), conn, OracleAQMessageType.Xml))
+                SendMessage(message, address, conn);
+            }
+            else
+            {
+                using (conn = new OracleConnection(this.ConnectionString))
                 {
-                    queue.EnqueueOptions.Visibility = this.GetVisibilityMode();
+                    conn.Open();
+                    SendMessage(message, address, conn);
+                }
+            }
+        }
 
-                    using (var stream = new MemoryStream())
+        private void SendMessage(TransportMessage message, Address address, OracleConnection conn)
+        {
+            using (OracleAQQueue queue = new OracleAQQueue(this.NamePolicy.GetQueueName(address), conn, OracleAQMessageType.Xml))
+            {
+                queue.EnqueueOptions.Visibility = this.GetVisibilityMode();
+
+                using (var stream = new MemoryStream())
+                {
+                    TransportMessageMapper.SerializeToXml(message, stream);
+                    OracleAQMessage aqMessage = new OracleAQMessage(Encoding.UTF8.GetString(stream.ToArray()));
+                    aqMessage.Correlation = message.CorrelationId;
+                    try
                     {
-                        TransportMessageMapper.SerializeToXml(message, stream);
-                        OracleAQMessage aqMessage = new OracleAQMessage(Encoding.UTF8.GetString(stream.ToArray()));
-                        aqMessage.Correlation = message.CorrelationId;
-                        try
+                        queue.Enqueue(aqMessage);
+                    }
+                    catch (OracleException ex)
+                    {
+                        if (ex.Number == OraCodes.QueueDoesNotExist)
                         {
-                            queue.Enqueue(aqMessage);
+                            throw new QueueNotFoundException { Queue = address };
                         }
-                        catch (OracleException ex)
+                        else
                         {
-                            if (ex.Number == OraCodes.QueueDoesNotExist)
-                            {
-                                throw new QueueNotFoundException { Queue = address };
-                            }
-                            else
-                            {
-                                throw;
-                            }
+                            throw;
                         }
                     }
                 }

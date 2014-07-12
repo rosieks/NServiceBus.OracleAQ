@@ -6,6 +6,7 @@
     using System.Transactions;
     using NServiceBus.CircuitBreakers;
     using NServiceBus.Logging;
+    using NServiceBus.Pipeline;
     using NServiceBus.Unicast.Transport;
     using Oracle.DataAccess.Client;
 
@@ -46,6 +47,8 @@
         /// Gets or sets the connection string used to open the Oracle database.
         /// </summary>
         public string ConnectionString { get; set; }
+
+        public PipelineExecutor PipelineExecutor { get; set; }
 
         /// <summary>
         /// Initializes the <see cref="IDequeueMessages" />.
@@ -179,6 +182,7 @@
         private ReceiveResult TryReceive(OracleAQQueue queue)
         {
             var result = new ReceiveResult();
+            string connectionKey = string.Format("SqlConnection-{0}", this.ConnectionString);
 
             using (var ts = new TransactionScope(TransactionScopeOption.Required, this.transactionOptions))
             {
@@ -187,6 +191,8 @@
 
                 try
                 {
+                    this.PipelineExecutor.CurrentContext.Set(connectionKey, queue.Connection);
+
                     if (result.Message == null || this.tryProcessMessage(result.Message))
                     {
                         // NOTE: We explicitly calling Dispose so that we force any exception to not bubble,
@@ -198,6 +204,10 @@
                 catch (Exception ex)
                 {
                     result.Exception = ex;
+                }
+                finally
+                {
+                    this.PipelineExecutor.CurrentContext.Remove(connectionKey);
                 }
 
                 return result;
