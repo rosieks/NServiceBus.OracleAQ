@@ -4,7 +4,7 @@
     using System.Collections.Concurrent;
 
     /// <summary>
-    /// Interface that definie policy used to convert queue name to database objects.
+    /// Interface that define policy used to convert queue name to database objects.
     /// </summary>
     public interface IQueueNamePolicy
     {
@@ -27,7 +27,7 @@
     /// Default policy to convert queue name to database objects.
     /// </summary>
     /// <remarks>
-    /// Policy run <see cref="NameTransformation"/> function and cache result in hashtable.
+    /// Policy run <see cref="NameTransformation"/> function and cache result in hash-table.
     /// Default version of <see cref="NameTransaformation"/> function replace dot (.) to underscore (_)
     /// and replace <i>TimeoutsDispatcher</i> to <i>TD</i>.
     /// </remarks>

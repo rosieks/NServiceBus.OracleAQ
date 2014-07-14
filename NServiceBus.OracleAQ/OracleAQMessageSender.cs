@@ -45,21 +45,20 @@
         /// Sends the given message to the address.
         /// </summary>
         /// <param name="message">Message to send.</param>
-        /// <param name="address">Message destination address.</param>
         public void Send(TransportMessage message, SendOptions sendOptions)
         {
             var address = sendOptions.Destination;
             OracleConnection conn;
             if (this.PipelineExecutor.CurrentContext.TryGet(string.Format("SqlConnection-", this.ConnectionString), out conn))
             {
-                SendMessage(message, address, conn);
+                this.SendMessage(message, address, conn);
             }
             else
             {
                 using (conn = new OracleConnection(this.ConnectionString))
                 {
                     conn.Open();
-                    SendMessage(message, address, conn);
+                    this.SendMessage(message, address, conn);
                 }
             }
         }
