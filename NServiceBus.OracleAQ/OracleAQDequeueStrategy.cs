@@ -124,7 +124,7 @@
                 {
                     t.Exception.Handle(ex =>
                         {
-                            Logger.Warn("Failed to connect to the configured Oracle database");
+                            Logger.Warn("Failed to connect to the configured Oracle database", ex);
                             circuitBreaker.Failure(ex);
                             return true;
                         });
