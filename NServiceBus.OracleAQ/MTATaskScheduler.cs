@@ -4,7 +4,6 @@
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -55,7 +54,10 @@
             }).ToList();
 
             // Start all of the threads
-            this.threads.ForEach(t => t.Start());
+            foreach (var thread in this.threads)
+            {
+                thread.Start();
+            }
         }
 
         /// <summary>Queues a Task to be executed by this scheduler.</summary>
