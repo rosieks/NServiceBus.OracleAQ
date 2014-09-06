@@ -1,6 +1,8 @@
 ﻿namespace NServiceBus.Features
 {
     using System;
+    using System.Configuration;
+    using System.Linq;
     using NServiceBus.Settings;
     using NServiceBus.Transports;
     using NServiceBus.Transports.OracleAQ;
@@ -22,26 +24,33 @@
         {
             OracleAQTransport.CustomizeAddress();
 
-            string connectionString = SettingsHolder.Get<string>("NServiceBus.Transport.ConnectionString");
+            string defaultConnectionString = SettingsHolder.Get<string>("NServiceBus.Transport.ConnectionString");
 
-            if (string.IsNullOrEmpty(connectionString))
+            var collection = ConfigurationManager
+                .ConnectionStrings
+                .Cast<ConnectionStringSettings>()
+                .Where(x => x.Name.StartsWith("NServiceBus/Transport/"))
+                .ToDictionary(x => x.Name.Replace("NServiceBus/Transport/", string.Empty), y => y.ConnectionString);
+
+            if (string.IsNullOrEmpty(defaultConnectionString))
             {
-                throw new ArgumentException("OracleAQ Transport connection string cannot be empty or null", "connectionString");
+                throw new ArgumentException("OracleAQ Transport connection string cannot be empty or null");
             }
 
             NServiceBus.Configure.Component<DefaultQueueNamePolicy>(DependencyLifecycle.SingleInstance);
 
             NServiceBus.Configure.Component<OracleAQPurger>(DependencyLifecycle.SingleInstance)
-                .ConfigureProperty(p => p.ConnectionString, connectionString);
+                .ConfigureProperty(p => p.ConnectionString, defaultConnectionString);
 
             NServiceBus.Configure.Component<OracleAQQueueCreator>(DependencyLifecycle.InstancePerCall)
-                .ConfigureProperty(p => p.ConnectionString, connectionString);
+                .ConfigureProperty(p => p.ConnectionString, defaultConnectionString);
 
             NServiceBus.Configure.Component<OracleAQMessageSender>(DependencyLifecycle.InstancePerCall)
-                .ConfigureProperty(p => p.ConnectionString, connectionString);
+                .ConfigureProperty(p => p.DefaultConnectionString, defaultConnectionString)
+                .ConfigureProperty(p => p.ConnectionStringCollection, collection);
 
             NServiceBus.Configure.Component<OracleAQDequeueStrategy>(DependencyLifecycle.InstancePerCall)
-                .ConfigureProperty(p => p.ConnectionString, connectionString)
+                .ConfigureProperty(p => p.ConnectionString, defaultConnectionString)
                 .ConfigureProperty(p => p.PurgeOnStartup, ConfigurePurging.PurgeRequested);
         }
 
