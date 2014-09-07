@@ -1,6 +1,8 @@
 ﻿namespace NServiceBus.Transports.OracleAQ
 {
     using System;
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.IO;
     using System.Text;
     using System.Transactions;
@@ -14,25 +16,14 @@
     /// </summary>
     public class OracleAQMessageSender : ISendMessages
     {
-        private bool canEnlist;
-        private string connectionString;
+        private static ConcurrentDictionary<string, bool> CanEnlistConnectionString = new ConcurrentDictionary<string, bool>();
 
         /// <summary>
         /// Gets or sets connection String to the service hosting the service broker
         /// </summary>
-        public string ConnectionString
-        {
-            get
-            {
-                return this.connectionString;
-            }
+        public string DefaultConnectionString { get; set; }
 
-            set
-            {
-                this.canEnlist = OracleAQMessageSender.CanEnlist(value);
-                this.connectionString = value;
-            }
-        }
+        public IDictionary<string, string> ConnectionStringCollection { get; set; }
 
         /// <summary>
         /// Gets or sets queues name policy.
@@ -48,18 +39,44 @@
         public void Send(TransportMessage message, SendOptions sendOptions)
         {
             var address = sendOptions.Destination;
-            OracleConnection conn;
-            if (this.PipelineExecutor.CurrentContext.TryGet(string.Format("SqlConnection-", this.ConnectionString), out conn))
+            var queue = address.Queue;
+
+            try
             {
-                this.SendMessage(message, address, conn);
-            }
-            else
-            {
-                using (conn = new OracleConnection(this.ConnectionString))
+                var queueConnectionString = this.DefaultConnectionString;
+                if (this.ConnectionStringCollection.Keys.Contains(queue))
                 {
-                    conn.Open();
+                    queueConnectionString = this.ConnectionStringCollection[queue];
+                }
+
+                OracleConnection conn;
+                if (this.PipelineExecutor.CurrentContext.TryGet(string.Format("SqlConnection-", queueConnectionString), out conn))
+                {
                     this.SendMessage(message, address, conn);
                 }
+                else
+                {
+                    using (conn = new OracleConnection(queueConnectionString))
+                    {
+                        conn.Open();
+                        this.SendMessage(message, address, conn);
+                    }
+                }
+            }
+            catch (OracleException ex)
+            {
+                if (ex.Number == OraCodes.QueueDoesNotExist && address != null)
+                {
+                    throw new QueueNotFoundException { Queue = address };
+                }
+                else
+                {
+                    OracleAQMessageSender.ThrowFailedToSendException(address, ex);
+                }
+            }
+            catch (Exception ex)
+            {
+                OracleAQMessageSender.ThrowFailedToSendException(address, ex);
             }
         }
 
@@ -67,7 +84,7 @@
         {
             using (OracleAQQueue queue = new OracleAQQueue(this.NamePolicy.GetQueueName(address), conn, OracleAQMessageType.Xml))
             {
-                queue.EnqueueOptions.Visibility = this.GetVisibilityMode();
+                queue.EnqueueOptions.Visibility = this.GetVisibilityMode(conn.ConnectionString);
 
                 using (var stream = new MemoryStream())
                 {
@@ -93,16 +110,37 @@
             }
         }
 
-        private static bool CanEnlist(string connectionString)
+        private static void ThrowFailedToSendException(Address address, Exception ex)
         {
-            // We can enlist connection if connectionString doesn't have "enlist=false;".
-            OracleConnectionStringBuilder builder = new OracleConnectionStringBuilder(connectionString);
-            return !string.Equals(builder.Enlist, "false", StringComparison.OrdinalIgnoreCase);
+            if (address == null)
+            {
+                throw new Exception("Failed to send message.", ex);
+            }
+            else
+            {
+                throw new Exception(
+                    string.Format("Failed to send message to address: {0}@{1}", address.Queue, address.Machine), ex);
+            }
+
         }
 
-        private OracleAQVisibilityMode GetVisibilityMode()
+        private static bool CanEnlist(string connectionString)
         {
-            if (this.canEnlist && Transaction.Current != null)
+            bool canEnlist;
+            if (!OracleAQMessageSender.CanEnlistConnectionString.TryGetValue(connectionString, out canEnlist))
+            {
+            // We can enlist connection if connectionString doesn't have "enlist=false;".
+            OracleConnectionStringBuilder builder = new OracleConnectionStringBuilder(connectionString);
+                canEnlist = !string.Equals(builder.Enlist, "false", StringComparison.OrdinalIgnoreCase);
+                OracleAQMessageSender.CanEnlistConnectionString.TryAdd(connectionString, canEnlist);
+            }
+
+            return canEnlist;
+        }
+
+        private OracleAQVisibilityMode GetVisibilityMode(string connectionString)
+        {
+            if (Transaction.Current != null && CanEnlist(connectionString))
             {
                 return OracleAQVisibilityMode.OnCommit;
             }
