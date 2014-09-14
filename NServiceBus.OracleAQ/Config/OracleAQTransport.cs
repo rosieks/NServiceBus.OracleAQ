@@ -25,7 +25,8 @@
             OracleAQTransport.CustomizeAddress(context.Settings);
 
             string defaultConnectionString = context.Settings.Get<string>("NServiceBus.Transport.ConnectionString");
-            string schema = context.Settings.Get<string>("NServiceBus.OracleAQ.Schema");
+            string schema;
+            context.Settings.TryGet<string>("NServiceBus.OracleAQ.Schema", out schema);
 
             var collection = ConfigurationManager
                 .ConnectionStrings

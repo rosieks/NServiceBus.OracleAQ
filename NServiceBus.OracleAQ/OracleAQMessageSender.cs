@@ -86,7 +86,13 @@
 
         private void SendMessage(TransportMessage message, string schema, Address address, OracleConnection conn)
         {
-            using (OracleAQQueue queue = new OracleAQQueue(string.Concat(schema, ".", this.NamePolicy.GetQueueName(address)), conn, OracleAQMessageType.Xml))
+            string queueName = this.NamePolicy.GetQueueName(address);
+            if (!string.IsNullOrEmpty(schema))
+            {
+                queueName = string.Concat(schema, ".", queueName);
+            }
+
+            using (OracleAQQueue queue = new OracleAQQueue(queueName, conn, OracleAQMessageType.Xml))
             {
                 queue.EnqueueOptions.Visibility = this.GetVisibilityMode(conn.ConnectionString);
 
