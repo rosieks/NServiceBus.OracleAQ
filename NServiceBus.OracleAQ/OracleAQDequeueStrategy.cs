@@ -48,6 +48,8 @@
         /// </summary>
         public string ConnectionString { get; set; }
 
+        public string Schema { get; set; }
+
         public PipelineExecutor PipelineExecutor { get; set; }
 
         /// <summary>
@@ -61,8 +63,12 @@
         {
             this.tryProcessMessage = tryProcessMessage;
             this.endProcessMessage = endProcessMessage;
-            this.workQueue = this.NamePolicy.GetQueueName(address);
             this.clientInfo = string.Format("OracleAQDequeueStrategy for {0}", this.workQueue);
+            this.workQueue = this.NamePolicy.GetQueueName(address);
+            if (!string.IsNullOrEmpty(this.Schema))
+            {
+                this.workQueue = this.Schema += "." + this.workQueue;
+            }
 
             this.transactionOptions = new TransactionOptions
             {

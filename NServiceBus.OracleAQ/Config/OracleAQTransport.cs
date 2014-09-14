@@ -25,6 +25,7 @@
             OracleAQTransport.CustomizeAddress(context.Settings);
 
             string defaultConnectionString = context.Settings.Get<string>("NServiceBus.Transport.ConnectionString");
+            string schema = context.Settings.Get<string>("NServiceBus.OracleAQ.Schema");
 
             var collection = ConfigurationManager
                 .ConnectionStrings
@@ -44,15 +45,18 @@
                 .ConfigureProperty(p => p.ConnectionString, defaultConnectionString);
 
             container.ConfigureComponent<OracleAQQueueCreator>(DependencyLifecycle.InstancePerCall)
-                .ConfigureProperty(p => p.ConnectionString, defaultConnectionString);
+                .ConfigureProperty(p => p.ConnectionString, defaultConnectionString)
+                .ConfigureProperty(p => p.Schema, schema);
 
             container.ConfigureComponent<OracleAQMessageSender>(DependencyLifecycle.InstancePerCall)
                 .ConfigureProperty(p => p.DefaultConnectionString, defaultConnectionString)
-                .ConfigureProperty(p => p.ConnectionStringCollection, collection);
+                .ConfigureProperty(p => p.ConnectionStringCollection, collection)
+                .ConfigureProperty(p => p.Schema, schema);
 
             container.ConfigureComponent<OracleAQDequeueStrategy>(DependencyLifecycle.InstancePerCall)
                 .ConfigureProperty(p => p.ConnectionString, defaultConnectionString)
-                .ConfigureProperty(p => p.PurgeOnStartup, ConfigurePurging.PurgeRequested);
+                .ConfigureProperty(p => p.PurgeOnStartup, ConfigurePurging.PurgeRequested)
+                .ConfigureProperty(p => p.Schema, schema);
         }
 
         protected override void InternalConfigure(Configure config)

@@ -14,7 +14,6 @@ You can specify transport as part of the IConfigureThisEndpoint class declaratio
 Or you can specify it using fluent configuration:
 
     Configure.With()
-        .DefaultBuilder()
         .UseTransport<OracleAQ>();
 
 ### Send message from PL/SQL
@@ -56,3 +55,14 @@ Here is sample implementation of it:
             return "AQ_" + address.Queue.Replace(".", "_").ToUpper();
         }
     }
+
+### Configure different schema
+
+If you want to keep queues in different schema than rest of your application but still have single connection string you can 
+configure your endpoint in such way:
+
+    Configure.With()
+        .UseTransport<OracleAQ>(t =>
+        {
+            t.UseSchema("queues");
+        });

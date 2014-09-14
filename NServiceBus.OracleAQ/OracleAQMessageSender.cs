@@ -16,7 +16,7 @@
     /// </summary>
     public class OracleAQMessageSender : ISendMessages
     {
-        private static ConcurrentDictionary<string, bool> CanEnlistConnectionString = new ConcurrentDictionary<string, bool>();
+        private static ConcurrentDictionary<string, bool> canEnlistConnectionString = new ConcurrentDictionary<string, bool>();
 
         /// <summary>
         /// Gets or sets connection String to the service hosting the service broker
@@ -24,6 +24,8 @@
         public string DefaultConnectionString { get; set; }
 
         public IDictionary<string, string> ConnectionStringCollection { get; set; }
+
+        public string Schema { get; set; }
 
         /// <summary>
         /// Gets or sets queues name policy.
@@ -40,6 +42,7 @@
         {
             var address = sendOptions.Destination;
             var queue = address.Queue;
+            var schema = this.Schema;
 
             try
             {
@@ -47,19 +50,20 @@
                 if (this.ConnectionStringCollection.Keys.Contains(queue))
                 {
                     queueConnectionString = this.ConnectionStringCollection[queue];
+                    schema = null;
                 }
 
                 OracleConnection conn;
                 if (this.PipelineExecutor.CurrentContext.TryGet(string.Format("SqlConnection-", queueConnectionString), out conn))
                 {
-                    this.SendMessage(message, address, conn);
+                    this.SendMessage(message, schema, address, conn);
                 }
                 else
                 {
                     using (conn = new OracleConnection(queueConnectionString))
                     {
                         conn.Open();
-                        this.SendMessage(message, address, conn);
+                        this.SendMessage(message, schema, address, conn);
                     }
                 }
             }
@@ -80,9 +84,9 @@
             }
         }
 
-        private void SendMessage(TransportMessage message, Address address, OracleConnection conn)
+        private void SendMessage(TransportMessage message, string schema, Address address, OracleConnection conn)
         {
-            using (OracleAQQueue queue = new OracleAQQueue(this.NamePolicy.GetQueueName(address), conn, OracleAQMessageType.Xml))
+            using (OracleAQQueue queue = new OracleAQQueue(string.Concat(schema, ".", this.NamePolicy.GetQueueName(address)), conn, OracleAQMessageType.Xml))
             {
                 queue.EnqueueOptions.Visibility = this.GetVisibilityMode(conn.ConnectionString);
 
@@ -121,18 +125,17 @@
                 throw new Exception(
                     string.Format("Failed to send message to address: {0}@{1}", address.Queue, address.Machine), ex);
             }
-
         }
 
         private static bool CanEnlist(string connectionString)
         {
             bool canEnlist;
-            if (!OracleAQMessageSender.CanEnlistConnectionString.TryGetValue(connectionString, out canEnlist))
+            if (!OracleAQMessageSender.canEnlistConnectionString.TryGetValue(connectionString, out canEnlist))
             {
             // We can enlist connection if connectionString doesn't have "enlist=false;".
             OracleConnectionStringBuilder builder = new OracleConnectionStringBuilder(connectionString);
                 canEnlist = !string.Equals(builder.Enlist, "false", StringComparison.OrdinalIgnoreCase);
-                OracleAQMessageSender.CanEnlistConnectionString.TryAdd(connectionString, canEnlist);
+                OracleAQMessageSender.canEnlistConnectionString.TryAdd(connectionString, canEnlist);
             }
 
             return canEnlist;

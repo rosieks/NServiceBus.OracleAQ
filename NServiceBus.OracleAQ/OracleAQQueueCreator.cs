@@ -12,32 +12,38 @@
         private const string CreateQueueSql = @"
             DECLARE 
                 cnt NUMBER;
+                schemaPrefix VARCHAR2(61);
             BEGIN 
-                SELECT count(*) INTO cnt FROM user_queues WHERE name = :queue;
+                SELECT count(*) INTO cnt FROM all_queues WHERE name = :queue AND owner = NVL(:schema, sys_context('userenv', 'current_schema'));
+                SELECT decode(:schema, null, '', :schema || '.') INTO schemaPrefix FROM dual;
                 IF cnt = 0 THEN
                     dbms_aqadm.create_queue(
-                        queue_name => :queue,
-                        queue_table => :queueTable,
+                        queue_name => schemaPrefix || :queue,
+                        queue_table => schemaPrefix || :queueTable,
                         max_retries => 999);
                 END IF;
-                DBMS_AQADM.START_QUEUE(:queue);
+                DBMS_AQADM.START_QUEUE(schemaPrefix || :queue);
             END;";
 
         private const string CreateQueueTableSql = @"
             DECLARE 
-                cnt NUMBER; 
+                cnt NUMBER;
+                schemaPrefix VARCHAR2(61);
             BEGIN 
-                SELECT count(*) INTO cnt FROM user_tables WHERE table_name = :queueTable;
+                SELECT count(*) INTO cnt FROM all_tables WHERE table_name = :queueTable AND owner = NVL(:schema, sys_context('userenv', 'current_schema'));
+                SELECT decode(:schema, null, '', :schema || '.') INTO schemaPrefix FROM dual;
                 IF cnt = 0 THEN
-                    dbms_aqadm.create_queue_table(:queueTable, 'SYS.XMLType');
+                    dbms_aqadm.create_queue_table(schemaPrefix || :queueTable, 'SYS.XMLType');
                 END IF;
             END;";
 
-        private const string DoesQueueExistSql = @"SELECT count(*) FROM user_queues WHERE name = :queue";
+        private const string DoesQueueExistSql = @"SELECT count(*) FROM all_queues WHERE name = :queue AND owner = NVL(:schema, sys_context('userenv', 'current_schema'))";
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(OracleAQQueueCreator));
 
         public string ConnectionString { get; set; }
+
+        public string Schema { get; set; }
 
         public IQueueNamePolicy NamePolicy { get; set; }
 
@@ -83,6 +89,7 @@
                     createQueue.CommandText = CreateQueueSql;
                     createQueue.Parameters.Add("queue", queue);
                     createQueue.Parameters.Add("queueTable", queueTable);
+                    createQueue.Parameters.Add("schema", this.GetDbSchema());
                     createQueue.ExecuteNonQuery();
                 }
 
@@ -103,6 +110,7 @@
                     createTable.BindByName = true;
                     createTable.CommandText = CreateQueueTableSql;
                     createTable.Parameters.Add("queueTable", queueTable);
+                    createTable.Parameters.Add("schema", this.GetDbSchema());
                     createTable.ExecuteNonQuery();
                 }
 
@@ -116,13 +124,26 @@
             {
                 conn.Open();
 
-                using (OracleCommand createTable = conn.CreateCommand())
+                using (OracleCommand doesQueueExist = conn.CreateCommand())
                 {
-                    createTable.BindByName = true;
-                    createTable.CommandText = DoesQueueExistSql;
-                    createTable.Parameters.Add("queue", this.NamePolicy.GetQueueName(address));
-                    return Convert.ToBoolean(createTable.ExecuteScalar());
+                    doesQueueExist.BindByName = true;
+                    doesQueueExist.CommandText = DoesQueueExistSql;
+                    doesQueueExist.Parameters.Add("queue", this.NamePolicy.GetQueueName(address));
+                    doesQueueExist.Parameters.Add("schema", this.GetDbSchema());
+                    return Convert.ToBoolean(doesQueueExist.ExecuteScalar());
                 }
+            }
+        }
+
+        private object GetDbSchema()
+        {
+            if (string.IsNullOrEmpty(this.Schema))
+            {
+                return DBNull.Value;
+            }
+            else
+            {
+                return this.Schema.ToUpper();
             }
         }
     }

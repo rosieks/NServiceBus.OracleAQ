@@ -68,6 +68,7 @@
     <Compile Include="OracleAQMessageSender.cs" />
     <Compile Include="OracleAQPurger.cs" />
     <Compile Include="OracleAQQueueCreator.cs" />
+    <Compile Include="OracleAQSettingsExtensions.cs" />
     <Compile Include="OracleStorageContext.cs" />
     <Compile Include="OraCodes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
