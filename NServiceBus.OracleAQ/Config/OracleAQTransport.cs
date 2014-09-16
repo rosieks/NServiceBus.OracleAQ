@@ -43,7 +43,8 @@
             container.ConfigureComponent<DefaultQueueNamePolicy>(DependencyLifecycle.SingleInstance);
 
             container.ConfigureComponent<OracleAQPurger>(DependencyLifecycle.SingleInstance)
-                .ConfigureProperty(p => p.ConnectionString, defaultConnectionString);
+                .ConfigureProperty(p => p.ConnectionString, defaultConnectionString)
+                .ConfigureProperty(p => p.Schema, schema);
 
             container.ConfigureComponent<OracleAQQueueCreator>(DependencyLifecycle.InstancePerCall)
                 .ConfigureProperty(p => p.ConnectionString, defaultConnectionString)
