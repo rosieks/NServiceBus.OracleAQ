@@ -3,6 +3,7 @@
     using System;
     using System.IO;
     using System.Text;
+    using System.Text.RegularExpressions;
     using System.Xml;
     using System.Xml.Serialization;
     using Oracle.DataAccess.Client;
@@ -11,6 +12,7 @@
     internal static class TransportMessageMapper
     {
         private static readonly XmlSerializer TransportMessageSerializer = CreateSerializer();
+        private static readonly Regex invalidCharcter = new Regex(@"[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]", RegexOptions.Compiled);
 
         public static void SerializeToXml(TransportMessage transportMessage, Stream stream)
         {
@@ -25,9 +27,21 @@
             }
 
             var data = transportMessage.Body.EncodeToUTF8WithoutIdentifier();
+            var base64required = invalidCharcter.IsMatch(data);
 
             var bodyElement = doc.CreateElement("Body");
-            bodyElement.AppendChild(doc.CreateCDataSection(data));
+            if (base64required)
+            {
+                var base64attr = doc.CreateAttribute("isBase64");
+                base64attr.Value = "true";
+                bodyElement.Attributes.Append(base64attr);
+                bodyElement.AppendChild(doc.CreateCDataSection(Convert.ToBase64String(transportMessage.Body)));
+            }
+            else
+            {
+                bodyElement.AppendChild(doc.CreateCDataSection(data));
+            }
+
             doc.DocumentElement.AppendChild(bodyElement);
 
             var headers = new SerializableDictionary<string, string>(transportMessage.Headers);
@@ -60,13 +74,26 @@
                 bodyDoc = type.GetXmlDocument();
             }
 
-            var bodySection = bodyDoc.DocumentElement.SelectSingleNode("Body").FirstChild as XmlCDataSection;
+            var bodySection = bodyDoc.DocumentElement.SelectSingleNode("Body");
+            byte[] bodyBytes = new byte[0];
+            if (bodySection != null)
+            {
+                var bodySectionData = bodySection.FirstChild as XmlCDataSection;
+                if (bodySection.Attributes["isBase64"] != null && bodySection.Attributes["isBase64"].Value == "true")
+                {
+                    bodyBytes = Convert.FromBase64String(bodySectionData.Data);
+                }
+                else
+                {
+                    bodyBytes = Encoding.UTF8.GetBytes(bodySectionData.Data);
+                }
+            }
 
             var headerDictionary = new SerializableDictionary<string, string>();
             var headerSection = bodyDoc.DocumentElement.SelectSingleNode("Headers");
             if (headerSection != null)
             {
-                headerDictionary.SetXml(headerSection.InnerXml);
+                headerDictionary.SetXml(headerSection);
             }
 
             Address replyToAddress = null;
@@ -85,7 +112,7 @@
 
             var transportMessage = new TransportMessage(new Guid(message.MessageId).ToString(), headerDictionary)
             {
-                Body = bodySection != null ? Encoding.UTF8.GetBytes(bodySection.Data) : new byte[0],
+                Body = bodyBytes,
                 MessageIntent = messageIntent,
             };
 

@@ -1,7 +1,6 @@
 ﻿namespace NServiceBus.Transports.OracleAQ
 {
     using System.Collections.Generic;
-    using System.IO;
     using System.Text;
     using System.Xml;
     using System.Xml.Serialization;
@@ -77,10 +76,12 @@
         }
         #endregion
 
-        public void SetXml(string xml)
+        public void SetXml(XmlNode node)
         {
-            using (var reader = XmlReader.Create(new StringReader(xml.Trim()), new XmlReaderSettings { ConformanceLevel = ConformanceLevel.Fragment }))
+            using (var reader = new XmlNodeReader(node))
             {
+                reader.Read();
+
                 this.ReadXml(reader);
             }
         }
