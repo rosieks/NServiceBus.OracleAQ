@@ -74,7 +74,7 @@
                 bodyDoc = type.GetXmlDocument();
             }
 
-            var bodySection = bodyDoc.DocumentElement.SelectSingleNode("Body");
+            var bodySection = bodyDoc.DocumentElement["Body"];
             byte[] bodyBytes = new byte[0];
             if (bodySection != null)
             {
@@ -90,21 +90,21 @@
             }
 
             var headerDictionary = new SerializableDictionary<string, string>();
-            var headerSection = bodyDoc.DocumentElement.SelectSingleNode("Headers");
+            var headerSection = bodyDoc.DocumentElement["Headers"];
             if (headerSection != null)
             {
                 headerDictionary.SetXml(headerSection);
             }
 
             Address replyToAddress = null;
-            var replyToAddressSection = bodyDoc.DocumentElement.SelectSingleNode("ReplyToAddress");
+            var replyToAddressSection = bodyDoc.DocumentElement["ReplyToAddress"];
             if (replyToAddressSection != null && !string.IsNullOrWhiteSpace(replyToAddressSection.InnerText))
             {
                 replyToAddress = Address.Parse(replyToAddressSection.InnerText.Trim());
             }
 
             MessageIntentEnum messageIntent = default(MessageIntentEnum);
-            var messageIntentSection = bodyDoc.DocumentElement.SelectSingleNode("MessageIntent");
+            var messageIntentSection = bodyDoc.DocumentElement["MessageIntent"];
             if (messageIntentSection != null)
             {
                 messageIntent = (MessageIntentEnum)Enum.Parse(typeof(MessageIntentEnum), messageIntentSection.InnerText);
