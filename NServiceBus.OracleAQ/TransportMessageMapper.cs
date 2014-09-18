@@ -5,60 +5,70 @@
     using System.Text;
     using System.Text.RegularExpressions;
     using System.Xml;
-    using System.Xml.Serialization;
     using Oracle.DataAccess.Client;
     using Oracle.DataAccess.Types;
 
     internal static class TransportMessageMapper
     {
-        private static readonly XmlSerializer TransportMessageSerializer = CreateSerializer();
         private static readonly Regex invalidCharcter = new Regex(@"[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]", RegexOptions.Compiled);
 
         public static void SerializeToXml(TransportMessage transportMessage, Stream stream)
         {
-            var doc = new XmlDocument();
-
-            using (var tempstream = new MemoryStream())
+            using (var xmlWriter = XmlWriter.Create(stream, new XmlWriterSettings { CloseOutput = false, Encoding = new UTF8Encoding(false) }))
             {
-                TransportMessageSerializer.Serialize(tempstream, transportMessage);
-                tempstream.Position = 0;
+                xmlWriter.WriteStartElement("TransportMessage");
+                xmlWriter.WriteAttributeString("xmlns", "xsi", null, "http://www.w3.org/2001/XMLSchema-instance");
+                xmlWriter.WriteAttributeString("xmlns", "xsd", null, "http://www.w3.org/2001/XMLSchema");
+                {
+                    xmlWriter.WriteStartElement("CorrelationId");
+                    xmlWriter.WriteValue(transportMessage.CorrelationId);
+                    xmlWriter.WriteEndElement();
+                }
+                {
+                    xmlWriter.WriteStartElement("Recoverable");
+                    xmlWriter.WriteValue(transportMessage.Recoverable);
+                    xmlWriter.WriteEndElement();
+                }
+                {
+                    xmlWriter.WriteStartElement("MessageIntent");
+                    xmlWriter.WriteValue(transportMessage.MessageIntent.ToString());
+                    xmlWriter.WriteEndElement();
+                }
+                {
+                    if (transportMessage.ReplyToAddress != null)
+                    {
+                        xmlWriter.WriteStartElement("ReplyToAddress");
+                        xmlWriter.WriteValue(transportMessage.ReplyToAddress.ToString());
+                        xmlWriter.WriteEndElement();
+                    }
+                }
+                {
+                    var data = transportMessage.Body.EncodeToUTF8WithoutIdentifier();
+                    var base64required = invalidCharcter.IsMatch(data);
+                    xmlWriter.WriteStartElement("Body");
+                    if (base64required)
+                    {
+                        xmlWriter.WriteAttributeString("isBase64", "true");
+                        xmlWriter.WriteCData(Convert.ToBase64String(transportMessage.Body));
+                    }
+                    else
+                    {
+                        xmlWriter.WriteCData(data);
+                    }
 
-                doc.Load(tempstream);
+                    xmlWriter.WriteEndElement();
+                }
+                {
+                    xmlWriter.WriteStartElement("Headers");
+                    var headers = new SerializableDictionary<string, string>(transportMessage.Headers);
+                    headers.WriteXml(xmlWriter);
+                    xmlWriter.WriteEndElement();
+                }
+
+                xmlWriter.WriteEndElement();
             }
 
-            var data = transportMessage.Body.EncodeToUTF8WithoutIdentifier();
-            var base64required = invalidCharcter.IsMatch(data);
-
-            var bodyElement = doc.CreateElement("Body");
-            if (base64required)
-            {
-                var base64attr = doc.CreateAttribute("isBase64");
-                base64attr.Value = "true";
-                bodyElement.Attributes.Append(base64attr);
-                bodyElement.AppendChild(doc.CreateCDataSection(Convert.ToBase64String(transportMessage.Body)));
-            }
-            else
-            {
-                bodyElement.AppendChild(doc.CreateCDataSection(data));
-            }
-
-            doc.DocumentElement.AppendChild(bodyElement);
-
-            var headers = new SerializableDictionary<string, string>(transportMessage.Headers);
-
-            var headerElement = doc.CreateElement("Headers");
-            headerElement.InnerXml = headers.GetXml();
-            doc.DocumentElement.AppendChild(headerElement);
-
-            if (transportMessage.ReplyToAddress != null)
-            {
-                var replyToAddressElement = doc.CreateElement("ReplyToAddress");
-                replyToAddressElement.InnerText = transportMessage.ReplyToAddress.ToString();
-                doc.DocumentElement.AppendChild(replyToAddressElement);
-            }
-
-            doc.Save(stream);
-            stream.Position = 0;
+            stream.Seek(0, SeekOrigin.Begin);
         }
 
         public static TransportMessage DeserializeFromXml(OracleAQMessage message)
@@ -117,17 +127,6 @@
             };
 
             return transportMessage;
-        }
-
-        private static XmlSerializer CreateSerializer()
-        {
-            var overrides = new XmlAttributeOverrides();
-            var attrs = new XmlAttributes { XmlIgnore = true };
-
-            overrides.Add(typeof(TransportMessage), "ReplyToAddress", attrs);
-            overrides.Add(typeof(TransportMessage), "Headers", attrs);
-            overrides.Add(typeof(TransportMessage), "Body", attrs);
-            return new XmlSerializer(typeof(TransportMessage), overrides);
         }
 
         private static string EncodeToUTF8WithoutIdentifier(this byte[] bytes)
