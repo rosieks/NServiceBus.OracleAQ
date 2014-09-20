@@ -6,17 +6,15 @@
     using System.Xml.Serialization;
 
     [XmlRoot("dictionary")]
-    internal class SerializableDictionary<TKey, TValue>
-        : Dictionary<TKey, TValue>, IXmlSerializable
+    internal class SerializableDictionary
+        : Dictionary<string, string>, IXmlSerializable
     {
-        private static XmlSerializer keySerializer = new XmlSerializer(typeof(TKey));
-        private static XmlSerializer valueSerializer = new XmlSerializer(typeof(TValue));
 
         public SerializableDictionary()
         {
         }
 
-        public SerializableDictionary(IDictionary<TKey, TValue> dictionary)
+        public SerializableDictionary(IDictionary<string, string> dictionary)
             : base(dictionary)
         {
         }
@@ -42,11 +40,15 @@
                 reader.ReadStartElement("item");
 
                 reader.ReadStartElement("key");
-                TKey key = (TKey)keySerializer.Deserialize(reader);
+                reader.ReadStartElement("string");
+                string key = reader.ReadContentAsString();
+                reader.ReadEndElement();
                 reader.ReadEndElement();
 
                 reader.ReadStartElement("value");
-                TValue value = (TValue)valueSerializer.Deserialize(reader);
+                reader.ReadStartElement("string");
+                string value = reader.ReadContentAsString();
+                reader.ReadEndElement();
                 reader.ReadEndElement();
 
                 this.Add(key, value);
@@ -58,17 +60,20 @@
 
         public void WriteXml(System.Xml.XmlWriter writer)
         {
-            foreach (TKey key in this.Keys)
+            foreach (string key in this.Keys)
             {
                 writer.WriteStartElement("item");
 
                 writer.WriteStartElement("key");
-                keySerializer.Serialize(writer, key);
+                writer.WriteStartElement("string");
+                writer.WriteValue(key);
+                writer.WriteEndElement();
                 writer.WriteEndElement();
 
                 writer.WriteStartElement("value");
-                TValue value = this[key];
-                valueSerializer.Serialize(writer, value);
+                writer.WriteStartElement("string");
+                writer.WriteValue(this[key]);
+                writer.WriteEndElement();
                 writer.WriteEndElement();
 
                 writer.WriteEndElement();

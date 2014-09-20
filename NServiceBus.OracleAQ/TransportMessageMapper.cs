@@ -60,7 +60,7 @@
                 }
                 {
                     xmlWriter.WriteStartElement("Headers");
-                    var headers = new SerializableDictionary<string, string>(transportMessage.Headers);
+                    var headers = new SerializableDictionary(transportMessage.Headers);
                     headers.WriteXml(xmlWriter);
                     xmlWriter.WriteEndElement();
                 }
@@ -99,7 +99,7 @@
                 }
             }
 
-            var headerDictionary = new SerializableDictionary<string, string>();
+            var headerDictionary = new SerializableDictionary();
             var headerSection = bodyDoc.DocumentElement["Headers"];
             if (headerSection != null)
             {
