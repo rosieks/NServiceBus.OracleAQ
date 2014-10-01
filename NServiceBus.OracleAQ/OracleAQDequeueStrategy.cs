@@ -15,12 +15,10 @@
     /// </summary>
     public class OracleAQDequeueStrategy : IDequeueMessages, IDisposable
     {
+        private bool purgeOnStartup;
+
         private static readonly ILog Logger = LogManager.GetLogger(typeof(OracleAQDequeueStrategy));
-        private readonly RepeatedFailuresOverTimeCircuitBreaker circuitBreaker = new RepeatedFailuresOverTimeCircuitBreaker(
-            "OracleAQTransportConnectivity",
-            TimeSpan.FromMinutes(2),
-            ex => ConfigureCriticalErrorAction.RaiseCriticalError("Repeated failures when communicating with Oracle database", ex),
-            TimeSpan.FromSeconds(10));
+        private readonly RepeatedFailuresOverTimeCircuitBreaker circuitBreaker;
 
         private TransactionOptions transactionOptions;
         private Func<TransportMessage, bool> tryProcessMessage;
@@ -31,17 +29,22 @@
         private CancellationTokenSource tokenSource;
         private OracleAQDequeueOptions dequeueOptions;
 
+        public OracleAQDequeueStrategy(CriticalError criticalError, Configure config)
+        {
+            this.circuitBreaker = new RepeatedFailuresOverTimeCircuitBreaker(
+                "OracleAQTransportConnectivity",
+                TimeSpan.FromMinutes(2),
+                ex => criticalError.Raise("Repeated failures when communicating with Oracle database", ex),
+                TimeSpan.FromSeconds(10));
+            this.purgeOnStartup = config.PurgeOnStartup();
+        }
+
         public OracleAQPurger Purger { get; set; }
 
         /// <summary>
         /// Gets or sets queues name policy.
         /// </summary>
         public IQueueNamePolicy NamePolicy { get; set; }
-
-        /// <summary>
-        /// Determines if the queue should be purged when the transport starts.
-        /// </summary>
-        public bool PurgeOnStartup { get; set; }
 
         /// <summary>
         /// Gets or sets the connection string used to open the Oracle database.
@@ -82,7 +85,7 @@
                 ProviderSpecificType = true,
             };
 
-            if (this.PurgeOnStartup)
+            if (this.purgeOnStartup)
             {
                 this.Purger.Purge(this.workQueue);
             }
