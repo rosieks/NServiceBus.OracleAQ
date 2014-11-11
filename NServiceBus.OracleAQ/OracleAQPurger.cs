@@ -3,7 +3,7 @@
     using System;
     using Oracle.DataAccess.Client;
 
-    public class OracleAQPurger
+    internal class OracleAQPurger
     {
         private const string PurgeSql = @"
             declare

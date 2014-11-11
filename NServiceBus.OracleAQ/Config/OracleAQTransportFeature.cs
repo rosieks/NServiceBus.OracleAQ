@@ -10,7 +10,7 @@
     /// <summary>
     /// Configures NServiceBus to use OracleAQ as the default transport.
     /// </summary>
-    public class OracleAQTransportFeature : ConfigureTransport
+    internal class OracleAQTransportFeature : ConfigureTransport
     {
         protected override string ExampleConnectionStringForErrorMessage
         {

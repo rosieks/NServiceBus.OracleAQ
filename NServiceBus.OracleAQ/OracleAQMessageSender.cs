@@ -14,7 +14,7 @@
     /// <summary>
     /// Sends a message via Oracle AQ.
     /// </summary>
-    public class OracleAQMessageSender : ISendMessages
+    internal class OracleAQMessageSender : ISendMessages
     {
         private static ConcurrentDictionary<string, bool> canEnlistConnectionString = new ConcurrentDictionary<string, bool>();
 

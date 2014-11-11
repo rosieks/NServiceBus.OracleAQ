@@ -13,7 +13,7 @@
     /// <summary>
     /// Default implementation of <see cref="IDequeueMessages"/> for OracleAQ.
     /// </summary>
-    public class OracleAQDequeueStrategy : IDequeueMessages, IDisposable
+    internal class OracleAQDequeueStrategy : IDequeueMessages, IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(OracleAQDequeueStrategy));
         private readonly RepeatedFailuresOverTimeCircuitBreaker circuitBreaker;

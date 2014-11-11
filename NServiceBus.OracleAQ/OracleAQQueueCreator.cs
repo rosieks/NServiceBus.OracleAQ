@@ -7,7 +7,7 @@
     /// <summary>
     /// OracleAQQueueCreator is used to create queues in Oracle database.
     /// </summary>
-    public class OracleAQQueueCreator : ICreateQueues
+    internal class OracleAQQueueCreator : ICreateQueues
     {
         private const string CreateQueueSql = @"
             DECLARE 
