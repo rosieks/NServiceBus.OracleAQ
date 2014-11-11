@@ -8,6 +8,8 @@ CREATE OR REPLACE PACKAGE NSB AS
 
   PROCEDURE SEND (endpoint VARCHAR2, namespace VARCHAR2, message VARCHAR2, data VARCHAR2, headers NSB.HEADERS);
 
+  PROCEDURE PUBLISH (endpoint VARCHAR2, namespace VARCHAR2, message VARCHAR2, data VARCHAR2, headers NSB.HEADERS);
+
 END NSB;
 
 /
@@ -58,6 +60,23 @@ END NSB;
       msgid => msgid);
     
   END SEND;
+
+  PROCEDURE PUBLISH (
+	endpoint VARCHAR2,
+	namespace VARCHAR2,
+	message VARCHAR2,
+	data VARCHAR2,
+	headers NSB.HEADERS)
+  BEGIN
+	headers('NServiceBus.EnclosedMessageTypes') := 'namespace' || '.' || message;
+
+	NSB.SEND(
+		endpoint => endpoint || '_pub',
+		namespace => namespace,
+		message => message,
+		data => data,
+		headers => headers)
+  END PUBLISH;
 
 END NSB;
 

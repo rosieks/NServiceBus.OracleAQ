@@ -70,6 +70,7 @@
     <Compile Include="OracleStorageContext.cs" />
     <Compile Include="OraCodes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="PublishSatellite.cs" />
     <Compile Include="SerializableDictionary.cs" />
     <Compile Include="TransportMessageMapper.cs" />
   </ItemGroup>

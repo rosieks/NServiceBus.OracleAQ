@@ -30,7 +30,7 @@
             Address.IgnoreMachineName();
 
             string schema;
-            context.Settings.TryGet<string>("NServiceBus.OracleAQ.Schema", out schema);
+            context.Settings.TryGet<string>(OracleAQSettingsExtensions.SchemaKey, out schema);
 
             var collection = ConfigurationManager
                 .ConnectionStrings
@@ -62,6 +62,13 @@
             container.ConfigureComponent<OracleAQDequeueStrategy>(DependencyLifecycle.InstancePerCall)
                 .ConfigureProperty(p => p.ConnectionString, connectionString)
                 .ConfigureProperty(p => p.Schema, schema);
+
+            bool publishFromDatabase = false;
+            if (context.Settings.TryGet<bool>(OracleAQSettingsExtensions.PublishFromDatabaseKey, out publishFromDatabase) && publishFromDatabase)
+            {
+                container.ConfigureComponent<PublishSatellite>(DependencyLifecycle.InstancePerCall)
+                    .ConfigureProperty(p => p.InputAddress, context.Settings.LocalAddress().SubScope("pub"));
+            }
         }
     }
 }

@@ -16,9 +16,9 @@ Or you can specify it using fluent configuration:
     Configure.With()
         .UseTransport<OracleAQ>();
 
-### Send message from PL/SQL
+### Send and publish message from PL/SQL
 
-One benefit of using NServiceBus OracleAQ transport is ability to send message from database PL/SQL procedure or code block. 
+One benefit of using NServiceBus OracleAQ transport is ability to send and publish message from database PL/SQL procedure or code block. 
 The following snippet ilustrate how to do that:
 
     DECLARE
@@ -37,6 +37,15 @@ The following snippet ilustrate how to do that:
 			headers => headers
 		);
 	END;
+
+In order to publish message from database you should use `NSB.PUBLISH` procedure instead of `NSB.SEND`.
+Additionaly configure endpoint to forward messages to subscribers:
+
+    Configure.With()
+        .UseTransport<OracleAQ>(t =>
+        {
+            t.EnablePublishFromDatabase();
+        });
 
 ### Create custom queue name policy
 
