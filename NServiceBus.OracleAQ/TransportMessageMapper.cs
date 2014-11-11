@@ -5,6 +5,7 @@
     using System.Text;
     using System.Text.RegularExpressions;
     using System.Xml;
+    using NServiceBus.Unicast;
     using Oracle.DataAccess.Client;
     using Oracle.DataAccess.Types;
 
@@ -12,7 +13,7 @@
     {
         private static readonly Regex invalidCharcter = new Regex(@"[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]", RegexOptions.Compiled);
 
-        public static void SerializeToXml(TransportMessage transportMessage, Stream stream)
+        public static void SerializeToXml(TransportMessage transportMessage, SendOptions options, Stream stream)
         {
             using (var xmlWriter = XmlWriter.Create(stream, new XmlWriterSettings { CloseOutput = false, Encoding = new UTF8Encoding(false) }))
             {
@@ -24,24 +25,28 @@
                     xmlWriter.WriteValue(transportMessage.CorrelationId);
                     xmlWriter.WriteEndElement();
                 }
+
                 {
                     xmlWriter.WriteStartElement("Recoverable");
                     xmlWriter.WriteValue(transportMessage.Recoverable);
                     xmlWriter.WriteEndElement();
                 }
+
                 {
                     xmlWriter.WriteStartElement("MessageIntent");
                     xmlWriter.WriteValue(transportMessage.MessageIntent.ToString());
                     xmlWriter.WriteEndElement();
                 }
+
                 {
-                    if (transportMessage.ReplyToAddress != null)
+                    if (options.ReplyToAddress != null)
                     {
                         xmlWriter.WriteStartElement("ReplyToAddress");
-                        xmlWriter.WriteValue(transportMessage.ReplyToAddress.ToString());
+                        xmlWriter.WriteValue(options.ReplyToAddress.ToString());
                         xmlWriter.WriteEndElement();
                     }
                 }
+
                 {
                     var data = transportMessage.Body.EncodeToUTF8WithoutIdentifier();
                     var base64required = invalidCharcter.IsMatch(data);
@@ -58,6 +63,7 @@
 
                     xmlWriter.WriteEndElement();
                 }
+
                 {
                     xmlWriter.WriteStartElement("Headers");
                     var headers = new SerializableDictionary(transportMessage.Headers);
@@ -106,11 +112,10 @@
                 headerDictionary.SetXml(headerSection);
             }
 
-            Address replyToAddress = null;
             var replyToAddressSection = bodyDoc.DocumentElement["ReplyToAddress"];
             if (replyToAddressSection != null && !string.IsNullOrWhiteSpace(replyToAddressSection.InnerText))
             {
-                replyToAddress = Address.Parse(replyToAddressSection.InnerText.Trim());
+                headerDictionary.Add(Headers.ReplyToAddress, replyToAddressSection.InnerText.Trim());
             }
 
             MessageIntentEnum messageIntent = default(MessageIntentEnum);

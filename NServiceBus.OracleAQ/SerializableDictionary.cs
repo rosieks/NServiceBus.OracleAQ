@@ -9,7 +9,6 @@
     internal class SerializableDictionary
         : Dictionary<string, string>, IXmlSerializable
     {
-
         public SerializableDictionary()
         {
         }
@@ -45,15 +44,18 @@
                 reader.ReadEndElement();
                 reader.ReadEndElement();
 
+                string value = null;
                 reader.ReadStartElement("value");
-                reader.ReadStartElement("string");
-                string value = reader.ReadContentAsString();
-                reader.ReadEndElement();
-                reader.ReadEndElement();
+                if (!reader.IsEmptyElement)
+                {
+                    reader.ReadStartElement("string");
+                    value = reader.ReadContentAsString();
+                    reader.ReadEndElement();
+                    reader.ReadEndElement();
+                    reader.ReadEndElement();
+                }
 
                 this.Add(key, value);
-
-                reader.ReadEndElement();
                 reader.MoveToContent();
             }
         }
@@ -83,11 +85,14 @@
 
         public void SetXml(XmlNode node)
         {
-            using (var reader = new XmlNodeReader(node))
+            using (var nodeReader = new XmlNodeReader(node))
             {
-                reader.Read();
+                using (var reader = XmlReader.Create(nodeReader, new XmlReaderSettings { IgnoreWhitespace = true }))
+                {
+                    reader.Read();
 
-                this.ReadXml(reader);
+                    this.ReadXml(reader);
+                }
             }
         }
 

@@ -15,11 +15,10 @@
     /// </summary>
     public class OracleAQDequeueStrategy : IDequeueMessages, IDisposable
     {
-        private bool purgeOnStartup;
-
         private static readonly ILog Logger = LogManager.GetLogger(typeof(OracleAQDequeueStrategy));
         private readonly RepeatedFailuresOverTimeCircuitBreaker circuitBreaker;
 
+        private bool purgeOnStartup;
         private TransactionOptions transactionOptions;
         private Func<TransportMessage, bool> tryProcessMessage;
         private Action<TransportMessage, Exception> endProcessMessage;

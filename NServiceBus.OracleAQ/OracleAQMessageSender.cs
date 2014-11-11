@@ -56,14 +56,14 @@
                 OracleConnection conn;
                 if (this.PipelineExecutor.CurrentContext.TryGet(string.Format("SqlConnection-", queueConnectionString), out conn))
                 {
-                    this.SendMessage(message, schema, address, conn);
+                    this.SendMessage(message, sendOptions, schema, conn);
                 }
                 else
                 {
                     using (conn = new OracleConnection(queueConnectionString))
                     {
                         conn.Open();
-                        this.SendMessage(message, schema, address, conn);
+                        this.SendMessage(message, sendOptions, schema, conn);
                     }
                 }
             }
@@ -84,9 +84,9 @@
             }
         }
 
-        private void SendMessage(TransportMessage message, string schema, Address address, OracleConnection conn)
+        private void SendMessage(TransportMessage message, SendOptions options, string schema, OracleConnection conn)
         {
-            string queueName = this.NamePolicy.GetQueueName(address);
+            string queueName = this.NamePolicy.GetQueueName(options.Destination);
             if (!string.IsNullOrEmpty(schema))
             {
                 queueName = string.Concat(schema, ".", queueName);
@@ -98,7 +98,7 @@
 
                 using (var stream = new MemoryStream())
                 {
-                    TransportMessageMapper.SerializeToXml(message, stream);
+                    TransportMessageMapper.SerializeToXml(message, options, stream);
                     OracleAQMessage aqMessage = new OracleAQMessage(Encoding.UTF8.GetString(stream.ToArray()));
                     aqMessage.Correlation = message.CorrelationId;
                     try
@@ -109,7 +109,7 @@
                     {
                         if (ex.Number == OraCodes.QueueDoesNotExist)
                         {
-                            throw new QueueNotFoundException { Queue = address };
+                            throw new QueueNotFoundException { Queue = options.Destination };
                         }
                         else
                         {
