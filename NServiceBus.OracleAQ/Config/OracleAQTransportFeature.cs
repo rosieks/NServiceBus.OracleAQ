@@ -25,12 +25,17 @@
             return settings.EndpointName();
         }
 
-        protected override void Configure(FeatureConfigurationContext context, string connectionString)
+        protected override void Configure(FeatureConfigurationContext context, string connectionStringWithSchema)
         {
             Address.IgnoreMachineName();
 
-            string schema;
-            context.Settings.TryGet<string>("NServiceBus.OracleAQ.Schema", out schema);
+            string defaultSchema = context.Settings.GetOrDefault<string>("NServiceBus.OracleAQ.Schema");
+
+            string configStringSchema;
+            var connectionString = connectionStringWithSchema.ExtractSchemaName(out configStringSchema);
+            var localConnectionParams = new ConnectionParams(null, configStringSchema, connectionString, defaultSchema);
+
+            var errorQueue = ErrorQueueSettings.GetConfiguredErrorQueue(context.Settings);
 
             var collection = ConfigurationManager
                 .ConnectionStrings
@@ -46,22 +51,22 @@
             var container = context.Container;
             container.ConfigureComponent<DefaultQueueNamePolicy>(DependencyLifecycle.SingleInstance);
 
+            container.ConfigureComponent<ReceiveStrategyFactory>(DependencyLifecycle.InstancePerCall)
+                .ConfigureProperty(p => p.ErrorQueue, errorQueue)
+                .ConfigureProperty(p => p.ConnectionInfo, localConnectionParams);
+
             container.ConfigureComponent<OracleAQPurger>(DependencyLifecycle.SingleInstance)
-                .ConfigureProperty(p => p.ConnectionString, connectionString)
-                .ConfigureProperty(p => p.Schema, schema);
+                .ConfigureProperty(p => p.ConnectionInfo, localConnectionParams);
 
             container.ConfigureComponent<OracleAQQueueCreator>(DependencyLifecycle.InstancePerCall)
-                .ConfigureProperty(p => p.ConnectionString, connectionString)
-                .ConfigureProperty(p => p.Schema, schema);
+                .ConfigureProperty(p => p.ConnectionString, connectionString);
 
             container.ConfigureComponent<OracleAQMessageSender>(DependencyLifecycle.InstancePerCall)
                 .ConfigureProperty(p => p.DefaultConnectionString, connectionString)
-                .ConfigureProperty(p => p.ConnectionStringCollection, collection)
-                .ConfigureProperty(p => p.Schema, schema);
+                .ConfigureProperty(p => p.ConnectionStringCollection, collection);
 
             container.ConfigureComponent<OracleAQDequeueStrategy>(DependencyLifecycle.InstancePerCall)
-                .ConfigureProperty(p => p.ConnectionString, connectionString)
-                .ConfigureProperty(p => p.Schema, schema);
+                .ConfigureProperty(p => p.SchemaName, localConnectionParams.Schema);
         }
     }
 }

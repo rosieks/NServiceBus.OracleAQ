@@ -3,12 +3,10 @@
     using System;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Transactions;
     using NServiceBus.CircuitBreakers;
     using NServiceBus.Logging;
     using NServiceBus.Pipeline;
     using NServiceBus.Unicast.Transport;
-    using Oracle.DataAccess.Client;
 
     /// <summary>
     /// Default implementation of <see cref="IDequeueMessages"/> for OracleAQ.
@@ -17,19 +15,18 @@
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(OracleAQDequeueStrategy));
         private readonly RepeatedFailuresOverTimeCircuitBreaker circuitBreaker;
+        private readonly ReceiveStrategyFactory receiveStrategyFactory;
 
         private bool purgeOnStartup;
-        private TransactionOptions transactionOptions;
-        private Func<TransportMessage, bool> tryProcessMessage;
         private Action<TransportMessage, Exception> endProcessMessage;
         private string workQueue;
-        private string clientInfo;
-        private MTATaskScheduler scheduler;
         private CancellationTokenSource tokenSource;
-        private OracleAQDequeueOptions dequeueOptions;
+        private Address primaryAddress;
+        private IReceiveStrategy receiveStrategy;
 
-        public OracleAQDequeueStrategy(CriticalError criticalError, Configure config)
+        public OracleAQDequeueStrategy(ReceiveStrategyFactory receiveStrategyFactory, CriticalError criticalError, Configure config)
         {
+            this.receiveStrategyFactory = receiveStrategyFactory;
             this.circuitBreaker = new RepeatedFailuresOverTimeCircuitBreaker(
                 "OracleAQTransportConnectivity",
                 TimeSpan.FromMinutes(2),
@@ -46,11 +43,10 @@
         public IQueueNamePolicy NamePolicy { get; set; }
 
         /// <summary>
-        /// Gets or sets the connection string used to open the Oracle database.
+        /// Gets or sets the name of the schema where queues are located
         /// </summary>
-        public string ConnectionString { get; set; }
-
-        public string Schema { get; set; }
+        /// <returns></returns>
+        public string SchemaName { get; set; }
 
         public PipelineExecutor PipelineExecutor { get; set; }
 
@@ -63,26 +59,11 @@
         /// <param name="endProcessMessage">Needs to be called by <see cref="IDequeueMessages" /> after the message has been processed regardless if the outcome was successful or not.</param>
         public void Init(Address address, TransactionSettings transactionSettings, Func<TransportMessage, bool> tryProcessMessage, Action<TransportMessage, Exception> endProcessMessage)
         {
-            this.tryProcessMessage = tryProcessMessage;
             this.endProcessMessage = endProcessMessage;
-            this.clientInfo = string.Format("OracleAQDequeueStrategy for {0}", this.workQueue);
+            this.primaryAddress = address;
             this.workQueue = this.NamePolicy.GetQueueName(address);
-            if (!string.IsNullOrEmpty(this.Schema))
-            {
-                this.workQueue = this.Schema += "." + this.workQueue;
-            }
 
-            this.transactionOptions = new TransactionOptions
-            {
-                IsolationLevel = transactionSettings.IsolationLevel,
-                Timeout = transactionSettings.TransactionTimeout,
-            };
-
-            this.dequeueOptions = new OracleAQDequeueOptions
-            {
-                DequeueMode = OracleAQDequeueMode.Remove,
-                ProviderSpecificType = true,
-            };
+            this.receiveStrategy = this.receiveStrategyFactory.Create(transactionSettings, tryProcessMessage);
 
             if (this.purgeOnStartup)
             {
@@ -97,13 +78,10 @@
         public void Start(int maximumConcurrencyLevel)
         {
             this.tokenSource = new CancellationTokenSource();
-            this.scheduler = new MTATaskScheduler(
-                maximumConcurrencyLevel,
-                string.Format("NServiceBus Dequeuer Worker Thread for [{0}]", this.workQueue));
 
             for (int i = 0; i < maximumConcurrencyLevel; i++)
             {
-                this.StartThread();
+                this.StartReceiveThread(new OracleAQQueueWrapper(this.primaryAddress, this.SchemaName, this.NamePolicy));
             }
         }
 
@@ -113,7 +91,6 @@
         public void Stop()
         {
             this.tokenSource.Cancel();
-            this.scheduler.Dispose();
             this.circuitBreaker.Dispose();
         }
 
@@ -122,52 +99,43 @@
             this.Stop();
         }
 
-        private void StartThread()
+        private void StartReceiveThread(OracleAQQueueWrapper queue)
         {
             CancellationToken token = this.tokenSource.Token;
 
             Task.Factory
-                .StartNew(this.Action, token, token, TaskCreationOptions.None, this.scheduler)
+                .StartNew(this.ReceiveLoop, new ReceiveLoopArgs(token, queue), token, TaskCreationOptions.LongRunning, TaskScheduler.Default)
                 .ContinueWith(t =>
                 {
                     t.Exception.Handle(ex =>
                         {
-                            Logger.Warn("Failed to connect to the configured Oracle database", ex);
-                            circuitBreaker.Failure(ex);
+                            Logger.Warn("An exeception occurred when connecting to the configured Oracle database", ex);
+                            this.circuitBreaker.Failure(ex);
                             return true;
                         });
 
-                    this.StartThread();
+                    if (!this.tokenSource.IsCancellationRequested)
+                    {
+                        this.StartReceiveThread(queue);
+                    }
                 }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
-        private void Action(object obj)
+        private void ReceiveLoop(object obj)
         {
-            var cancellationToken = (CancellationToken)obj;
+            var args = (ReceiveLoopArgs)obj;
 
-            while (!cancellationToken.IsCancellationRequested)
+            while (!args.Token.IsCancellationRequested)
             {
-                var result = new ReceiveResult();
+                var result = ReceiveResult.NoMessage();
 
                 try
                 {
-                    using (var connection = new OracleConnection(this.ConnectionString))
-                    {
-                        using (var queue = new OracleAQQueue(this.workQueue, connection, OracleAQMessageType.Xml))
-                        {
-                            connection.Open();
-
-                            this.SetupClientInfo(connection);
-
-                            queue.Listen(null);
-
-                            result = this.TryReceive(queue);
-                        }
-                    }
+                    result = this.receiveStrategy.TryReceiveFrom(args.Queue);
                 }
                 finally
                 {
-                    if (result.Message != null)
+                    if (result.HasReceivedMessage)
                     {
                         this.endProcessMessage(result.Message, result.Exception);
                     }
@@ -177,74 +145,16 @@
             }
         }
 
-        private void SetupClientInfo(OracleConnection connection)
+        private class ReceiveLoopArgs
         {
-            using (var command = connection.CreateCommand())
+            public readonly OracleAQQueueWrapper Queue;
+            public readonly CancellationToken Token;
+
+            public ReceiveLoopArgs(CancellationToken token, OracleAQQueueWrapper queue)
             {
-                command.CommandText = "begin DBMS_APPLICATION_INFO.SET_CLIENT_INFO(:p1); end;";
-                command.Parameters.Add("p1", this.clientInfo);
-                command.ExecuteNonQuery();
+                this.Token = token;
+                this.Queue = queue;
             }
-        }
-
-        private ReceiveResult TryReceive(OracleAQQueue queue)
-        {
-            var result = new ReceiveResult();
-            string connectionKey = string.Format("SqlConnection-{0}", this.ConnectionString);
-
-            using (var ts = new TransactionScope(TransactionScopeOption.Required, this.transactionOptions))
-            {
-                queue.Connection.EnlistTransaction(Transaction.Current);
-                result.Message = this.Receive(queue);
-
-                try
-                {
-                    this.PipelineExecutor.CurrentContext.Set(connectionKey, queue.Connection);
-
-                    if (result.Message == null || this.tryProcessMessage(result.Message))
-                    {
-                        // NOTE: We explicitly calling Dispose so that we force any exception to not bubble,
-                        // eg Concurrency/Deadlock exception.
-                        ts.Complete();
-                        ts.Dispose();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    result.Exception = ex;
-                }
-                finally
-                {
-                    this.PipelineExecutor.CurrentContext.Remove(connectionKey);
-                }
-
-                return result;
-            }
-        }
-
-        private TransportMessage Receive(OracleAQQueue queue)
-        {
-            OracleAQMessage aqMessage = null;
-            try
-            {
-                aqMessage = queue.Dequeue(this.dequeueOptions);
-            }
-            catch (OracleException ex)
-            {
-                if (ex.Number != OraCodes.TimeoutOrEndOfFetch)
-                {
-                    throw;
-                }
-            }
-
-            return TransportMessageMapper.DeserializeFromXml(aqMessage);
-        }
-
-        private class ReceiveResult
-        {
-            public Exception Exception { get; set; }
-
-            public TransportMessage Message { get; set; }
         }
     }
 }

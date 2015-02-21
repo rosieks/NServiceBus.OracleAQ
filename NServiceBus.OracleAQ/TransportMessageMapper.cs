@@ -6,7 +6,6 @@
     using System.Text.RegularExpressions;
     using System.Xml;
     using NServiceBus.Unicast;
-    using Oracle.DataAccess.Client;
     using Oracle.DataAccess.Types;
 
     internal static class TransportMessageMapper
@@ -77,18 +76,15 @@
             stream.Seek(0, SeekOrigin.Begin);
         }
 
-        public static TransportMessage DeserializeFromXml(OracleAQMessage message)
+        public static TransportMessage DeserializeFromXml(RawMessage message)
         {
             if (message == null)
             {
                 return null;
             }
 
-            XmlDocument bodyDoc;
-            using (OracleXmlType type = (OracleXmlType)message.Payload)
-            {
-                bodyDoc = type.GetXmlDocument();
-            }
+            XmlDocument bodyDoc = new XmlDocument();
+            bodyDoc.Load(message.Payload);
 
             var bodySection = bodyDoc.DocumentElement["Body"];
             byte[] bodyBytes = new byte[0];

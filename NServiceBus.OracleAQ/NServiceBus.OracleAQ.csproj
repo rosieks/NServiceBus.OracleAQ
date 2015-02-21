@@ -58,10 +58,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AmbientTransactionReceiveStrategy.cs" />
+    <Compile Include="ConnectionParams.cs" />
+    <Compile Include="NoTransactionReceiveStrategy.cs" />
+    <Compile Include="OracleConnectionStringHelper.cs" />
+    <Compile Include="ErrorQueueSettings.cs" />
+    <Compile Include="IReceiveStrategy.cs" />
+    <Compile Include="MessageReadResult.cs" />
+    <Compile Include="RawMessage.cs" />
+    <Compile Include="ReceiveStrategyFactory.cs" />
+    <Compile Include="OracleAQQueueWrapper.cs" />
     <Compile Include="Config\OracleAQTransport.cs" />
     <Compile Include="Config\OracleAQTransportFeature.cs" />
     <Compile Include="IQueueNamePolicy.cs" />
-    <Compile Include="MTATaskScheduler.cs" />
     <Compile Include="OracleAQDequeueStrategy.cs" />
     <Compile Include="OracleAQMessageSender.cs" />
     <Compile Include="OracleAQPurger.cs" />
@@ -69,7 +78,9 @@
     <Compile Include="OracleAQSettingsExtensions.cs" />
     <Compile Include="OracleStorageContext.cs" />
     <Compile Include="OraCodes.cs" />
+    <Compile Include="PipelineExecutorExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReceiveResult.cs" />
     <Compile Include="SerializableDictionary.cs" />
     <Compile Include="TransportMessageMapper.cs" />
   </ItemGroup>

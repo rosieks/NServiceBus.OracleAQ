@@ -18,20 +18,18 @@
                     purge_options => po_t);
             end;";
 
-        public string ConnectionString { get; set; }
-
-        public string Schema { get; set; }
+        public ConnectionParams ConnectionInfo { get; set; }
 
         public void Purge(string queue)
         {
-            using (OracleConnection conn = new OracleConnection(this.ConnectionString))
+            using (OracleConnection conn = new OracleConnection(this.ConnectionInfo.ConnectionString))
             {
                 conn.Open();
                 using (OracleCommand cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = PurgeSql;
                     cmd.Parameters.Add("queue", queue);
-                    cmd.Parameters.Add("schema", (object)this.Schema ?? DBNull.Value);
+                    cmd.Parameters.Add("schema", (object)this.ConnectionInfo.Schema ?? DBNull.Value);
                     cmd.Parameters.Add("queueCondition", string.Format("qtview.queue = '{0}'", queue));
                     cmd.ExecuteNonQuery();
                 }

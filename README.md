@@ -61,8 +61,6 @@ Here is sample implementation of it:
 If you want to keep queues in different schema than rest of your application but still have single connection string you can 
 configure your endpoint in such way:
 
-    Configure.With()
-        .UseTransport<OracleAQ>(t =>
-        {
-            t.UseSchema("queues");
-        });
+    var config = new BusConfiguration();
+    config.UseTransport<OracleAQTransport>()
+        .UseSchema("queues");

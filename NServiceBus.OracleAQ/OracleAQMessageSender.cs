@@ -1,11 +1,9 @@
 ﻿namespace NServiceBus.Transports.OracleAQ
 {
     using System;
-    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.IO;
     using System.Text;
-    using System.Transactions;
     using NServiceBus.Pipeline;
     using NServiceBus.Unicast;
     using NServiceBus.Unicast.Queuing;
@@ -16,8 +14,6 @@
     /// </summary>
     internal class OracleAQMessageSender : ISendMessages
     {
-        private static ConcurrentDictionary<string, bool> canEnlistConnectionString = new ConcurrentDictionary<string, bool>();
-
         /// <summary>
         /// Gets or sets connection String to the service hosting the service broker
         /// </summary>
@@ -86,37 +82,15 @@
 
         private void SendMessage(TransportMessage message, SendOptions options, string schema, OracleConnection conn)
         {
-            string queueName = this.NamePolicy.GetQueueName(options.Destination);
-            if (!string.IsNullOrEmpty(schema))
-            {
-                queueName = string.Concat(schema, ".", queueName);
-            }
+            var queue = new OracleAQQueueWrapper(options.Destination, schema, this.NamePolicy);
 
-            using (OracleAQQueue queue = new OracleAQQueue(queueName, conn, OracleAQMessageType.Xml))
+            using (var stream = new MemoryStream())
             {
-                queue.EnqueueOptions.Visibility = this.GetVisibilityMode(conn.ConnectionString);
+                TransportMessageMapper.SerializeToXml(message, options, stream);
+                OracleAQMessage aqMessage = new OracleAQMessage(Encoding.UTF8.GetString(stream.ToArray()));
+                aqMessage.Correlation = message.CorrelationId;
 
-                using (var stream = new MemoryStream())
-                {
-                    TransportMessageMapper.SerializeToXml(message, options, stream);
-                    OracleAQMessage aqMessage = new OracleAQMessage(Encoding.UTF8.GetString(stream.ToArray()));
-                    aqMessage.Correlation = message.CorrelationId;
-                    try
-                    {
-                        queue.Enqueue(aqMessage);
-                    }
-                    catch (OracleException ex)
-                    {
-                        if (ex.Number == OraCodes.QueueDoesNotExist)
-                        {
-                            throw new QueueNotFoundException { Queue = options.Destination };
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
-                }
+                queue.Send(aqMessage, conn);
             }
         }
 
@@ -130,32 +104,6 @@
             {
                 throw new Exception(
                     string.Format("Failed to send message to address: {0}@{1}", address.Queue, address.Machine), ex);
-            }
-        }
-
-        private static bool CanEnlist(string connectionString)
-        {
-            bool canEnlist;
-            if (!OracleAQMessageSender.canEnlistConnectionString.TryGetValue(connectionString, out canEnlist))
-            {
-            // We can enlist connection if connectionString doesn't have "enlist=false;".
-            OracleConnectionStringBuilder builder = new OracleConnectionStringBuilder(connectionString);
-                canEnlist = !string.Equals(builder.Enlist, "false", StringComparison.OrdinalIgnoreCase);
-                OracleAQMessageSender.canEnlistConnectionString.TryAdd(connectionString, canEnlist);
-            }
-
-            return canEnlist;
-        }
-
-        private OracleAQVisibilityMode GetVisibilityMode(string connectionString)
-        {
-            if (Transaction.Current != null && CanEnlist(connectionString))
-            {
-                return OracleAQVisibilityMode.OnCommit;
-            }
-            else
-            {
-                return OracleAQVisibilityMode.Immediate;
             }
         }
     }
