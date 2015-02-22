@@ -13,6 +13,12 @@
             return new ContextItemRemovalDisposable(key, pipelineExecutor);
         }
 
+        public static bool TryGetConnection(this PipelineExecutor piplineExecutor, string connectionString, out OracleConnection connection)
+        {
+            var key = MakeConnectionKey(connectionString);
+            return piplineExecutor.CurrentContext.TryGet<OracleConnection>(key, out connection);
+        }
+
         private static string MakeConnectionKey(string connectionString)
         {
             return string.Format("SqlConnection-{0}", connectionString);

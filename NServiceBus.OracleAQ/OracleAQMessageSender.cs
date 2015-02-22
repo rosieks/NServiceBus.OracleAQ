@@ -50,7 +50,7 @@
                 }
 
                 OracleConnection conn;
-                if (this.PipelineExecutor.CurrentContext.TryGet(string.Format("SqlConnection-", queueConnectionString), out conn))
+                if (this.PipelineExecutor.TryGetConnection(queueConnectionString, out conn))
                 {
                     this.SendMessage(message, sendOptions, schema, conn);
                 }
