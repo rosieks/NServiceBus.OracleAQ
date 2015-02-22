@@ -56,22 +56,13 @@
         {
             Logger.DebugFormat("Checking if queue exists: {0}.", address);
 
-            try
+            if (!this.DoesQueueExist(address))
             {
-                if (!this.DoesQueueExist(address))
-                {
-                    Logger.WarnFormat("Queue {0} does not exist.", address);
-                    Logger.DebugFormat("Going to create queue table: {0}", address);
+                Logger.WarnFormat("Queue {0} does not exist.", address);
+                Logger.DebugFormat("Going to create queue table: {0}", address);
 
-                    this.CreateQueueTable(address);
-                    this.CreateQueue(address);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(
-                    string.Format("Could not create queue {0} or check its existence. Processing will still continue.", address),
-                    ex);
+                this.CreateQueueTable(address);
+                this.CreateQueue(address);
             }
         }
 
