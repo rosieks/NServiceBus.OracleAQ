@@ -71,6 +71,7 @@
             {
                 DequeueMode = OracleAQDequeueMode.Remove,
                 ProviderSpecificType = true,
+                Wait = 0,
             };
 
             if (this.PurgeOnStartup)
